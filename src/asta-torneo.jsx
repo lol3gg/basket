@@ -32,6 +32,7 @@ import {
   BANDITORE_COACH_ID,
   BANDITORE_KEY,
   isBanditoreRole,
+  isBanditoreConsole,
   joinCoachIntoState,
   addSetupPlayer,
   createJoinRequestId,
@@ -166,7 +167,7 @@ function AstaTorneoAbly() {
   const joinAttemptsRef = useRef(0);
   const coachRegisteredRef = useRef(false);
 
-  const isAuctioneer = isBanditoreRole(coachId);
+  const isAuctioneer = isBanditoreConsole(coachId, isBanditoreSessionVerified());
   isAuctioneerRef.current = isAuctioneer;
   pendingJoinRef.current = pendingJoin;
 

@@ -26,6 +26,11 @@ export function isBanditoreRole(coachId) {
   return Number(coachId) === BANDITORE_COACH_ID;
 }
 
+/** Banditore autenticato (PC + password), non un allenatore con id errato. */
+export function isBanditoreConsole(coachId, sessionVerified) {
+  return isBanditoreRole(coachId) && Boolean(sessionVerified);
+}
+
 export function getJoinedCoaches(coaches) {
   return (coaches || []).filter((c) => c.online && c.id !== BANDITORE_COACH_ID);
 }
@@ -77,7 +82,10 @@ export function joinCoachIntoState(coaches, requestedId, name, budget = INITIAL_
     };
   }
 
-  const nextId = list.reduce((max, c) => Math.max(max, c.id), 0) + 1;
+  const nextId = Math.max(
+    list.reduce((max, c) => Math.max(max, c.id), BANDITORE_COACH_ID),
+    BANDITORE_COACH_ID,
+  ) + 1;
   const newCoach = { id: nextId, name: trimmedName, budget, players: [], online: true };
   return { coaches: [...list, newCoach], coachId: nextId };
 }

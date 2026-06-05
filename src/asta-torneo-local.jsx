@@ -9,6 +9,7 @@ import {
   BANDITORE_COACH_ID,
   BANDITORE_KEY,
   isBanditoreRole,
+  isBanditoreConsole,
   joinCoachIntoState,
   addSetupPlayer,
   isMobileDevice,
@@ -74,7 +75,7 @@ export function AstaTorneoLocal() {
   const stateRef = useRef({});
   const coachRegisteredRef = useRef(false);
 
-  const isAuctioneer = isBanditoreRole(coachId);
+  const isAuctioneer = isBanditoreConsole(coachId, isBanditoreSessionVerified());
   stateRef.current = { currentBid, currentBidder, currentPlayer, coaches, players, timer, isRunning, phase };
 
   const pushLog = (text) => {

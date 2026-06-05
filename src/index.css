@@ -1570,6 +1570,26 @@ body::before {
 .setup-list.coaches li {
   display: grid;
   grid-template-columns: auto 1fr auto;
+  align-items: center;
+}
+
+.picker-card.selected {
+  border-color: var(--coach-color, var(--gold));
+  box-shadow: var(--shadow-3d), 0 0 28px color-mix(in srgb, var(--coach-color, var(--gold)) 35%, transparent);
+  transform: translateY(-4px) scale(1.02);
+}
+
+.room-coach-label {
+  margin-top: 1.25rem;
+  margin-bottom: 0.65rem;
+}
+
+.room-coach-grid {
+  margin-bottom: 1.25rem;
+}
+
+.room-enter-btn {
+  margin-top: 0.5rem;
 }
 
 .share-links-panel {

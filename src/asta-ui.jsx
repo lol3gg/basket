@@ -14,7 +14,9 @@ import {
   isBanditoreRole,
   getCoachDisplayName,
   getJoinedCoaches,
-  BANDITORE_PASSWORD,
+  getSetupCoaches,
+  BANDITORE_COACH_ID,
+  COACH_COUNT,
 } from './asta-setup.js';
 import { useAuctionBeep, useBidSound, usePlayerStartSound, playBidFeedback, URGENT_TIMER_SECONDS } from './useAuctionBeep.js';
 
@@ -199,23 +201,18 @@ function TabBar({ active, onChange }) {
   );
 }
 
-export function BanditoreRoomEntry({ defaultCode, onJoin }) {
+export function RoomEntryScreen({ defaultCode, defaultCoachId, onJoin }) {
+  const coaches = getSetupCoaches();
   const [code, setCode] = useState(defaultCode || '');
-  const [password, setPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
+  const [selectedId, setSelectedId] = useState(defaultCoachId ?? null);
 
   const handleJoin = () => {
     const normalized = code.trim().toUpperCase();
-    if (!normalized) return;
-    if (password.trim() !== BANDITORE_PASSWORD) {
-      setPasswordError('Password non corretta');
-      return;
-    }
-    setPasswordError('');
-    onJoin(normalized);
+    if (!normalized || !selectedId) return;
+    const coach = coaches.find((c) => c.id === selectedId);
+    if (!coach) return;
+    onJoin(normalized, selectedId, getCoachDisplayName(coach));
   };
-
-  const canJoin = code.trim() && password.trim();
 
   return (
     <div className="app dash">
@@ -225,60 +222,11 @@ export function BanditoreRoomEntry({ defaultCode, onJoin }) {
           <h1 className="arena-title">{APP_TITLE}</h1>
           <div className="arena-line" />
         </div>
-        <p className="dash-subtitle">Dashboard banditore — apri la stanza dal PC</p>
-        <p className="room-hint muted">Il banditore non gioca: gestisce timer, offerte e conferme</p>
+        <p className="dash-subtitle">Inserisci il codice stanza e scegli il tuo allenatore</p>
+        <p className="room-hint muted">Coach 1 = Banditore (controlli asta) · Coach 2–8 = Allenatori</p>
       </header>
 
-      <div className="room-entry room-entry-banditore">
-        <label className="room-label" htmlFor="stanza-code">Codice stanza</label>
-        <input
-          id="stanza-code"
-          type="text"
-          className="room-input"
-          placeholder="es. TORNEO2025"
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-          autoComplete="off"
-        />
-        <label className="room-label" htmlFor="banditore-password">Password banditore</label>
-        <input
-          id="banditore-password"
-          type="password"
-          className="room-input room-input-sm"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => { setPassword(e.target.value); setPasswordError(''); }}
-          autoComplete="current-password"
-        />
-        {passwordError && <div className="alert room-password-alert">{passwordError}</div>}
-        <p className="room-hint muted">Condividi il codice stanza con gli allenatori (non la password)</p>
-        <button type="button" className="btn-cta btn-cta-lg" disabled={!canJoin} onClick={handleJoin}>
-          Apri dashboard banditore
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export function MobileRoomEntry({ defaultCode, onJoin }) {
-  const [code, setCode] = useState(defaultCode || '');
-  const [name, setName] = useState('');
-
-  const handleJoin = () => {
-    const normalized = code.trim().toUpperCase();
-    const trimmedName = name.trim();
-    if (!normalized || !trimmedName) return;
-    onJoin(normalized, trimmedName);
-  };
-
-  return (
-    <div className="app mobile-coach">
-      <header className="mobile-coach-header">
-        <h1 className="mobile-coach-title">{APP_TITLE}</h1>
-        <p className="mobile-coach-sub">Inserisci il codice e il tuo nome per rilanciare</p>
-      </header>
-
-      <div className="mobile-entry-form">
+      <div className="room-entry">
         <label className="room-label" htmlFor="stanza-code">Codice stanza</label>
         <input
           id="stanza-code"
@@ -290,21 +238,27 @@ export function MobileRoomEntry({ defaultCode, onJoin }) {
           autoComplete="off"
         />
 
-        <label className="room-label" htmlFor="coach-name">Il tuo nome</label>
-        <input
-          id="coach-name"
-          type="text"
-          className="mobile-name-input"
-          placeholder="es. Marco"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          autoComplete="name"
-        />
+        <p className="room-label room-coach-label">Scegli il tuo allenatore</p>
+        <div className="picker-grid room-coach-grid">
+          {coaches.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={`picker-card ${selectedId === c.id ? 'selected' : ''}`}
+              style={{ '--coach-color': getCoachColor(c.id) }}
+              onClick={() => setSelectedId(c.id)}
+            >
+              <span className="picker-num">{c.id}</span>
+              <span className="picker-name">{getCoachDisplayName(c)}</span>
+              {c.id === BANDITORE_COACH_ID && <span className="picker-tag">Banditore</span>}
+            </button>
+          ))}
+        </div>
 
         <button
           type="button"
-          className="btn-cta btn-cta-lg"
-          disabled={!code.trim() || !name.trim()}
+          className="btn-cta btn-cta-lg room-enter-btn"
+          disabled={!code.trim() || !selectedId}
           onClick={handleJoin}
         >
           Entra nell&apos;asta
@@ -312,6 +266,16 @@ export function MobileRoomEntry({ defaultCode, onJoin }) {
       </div>
     </div>
   );
+}
+
+/** @deprecated Usa RoomEntryScreen */
+export function BanditoreRoomEntry(props) {
+  return <RoomEntryScreen {...props} defaultCoachId={BANDITORE_COACH_ID} />;
+}
+
+/** @deprecated Usa RoomEntryScreen */
+export function MobileRoomEntry(props) {
+  return <RoomEntryScreen {...props} />;
 }
 
 export function MobileLocalEntry({ onJoin }) {
@@ -748,20 +712,6 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '' }) {
     }));
   };
 
-  const addCoach = () => {
-    setDraft((d) => ({
-      ...d,
-      coaches: [...d.coaches, createSetupCoach(d.coaches)],
-    }));
-  };
-
-  const removeCoach = (id) => {
-    setDraft((d) => {
-      if (d.coaches.length <= 1) return d;
-      return { ...d, coaches: d.coaches.filter((c) => c.id !== id) };
-    });
-  };
-
   const handleSave = () => {
     saveSetup(draft);
     onSave(draft);
@@ -814,33 +764,21 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '' }) {
 
         <section className="dash-panel setup-coaches-panel">
           <div className="panel-head">
-            <h2 className="panel-title">Allenatori</h2>
-            <span className="panel-count">{draft.coaches.length} totali</span>
-            <button type="button" className="btn-secondary setup-add-btn" onClick={addCoach}>
-              + Aggiungi allenatore
-            </button>
+            <h2 className="panel-title">Allenatori ({COACH_COUNT})</h2>
+            <span className="panel-count">#1 = Banditore</span>
           </div>
-          <p className="setup-note muted">I nomi compaiono nei link personali da condividere.</p>
+          <p className="setup-note muted">Rinomina gli 8 allenatori. All&apos;ingresso ognuno sceglie il proprio slot.</p>
           <ul className="setup-list coaches">
-            {draft.coaches.map((c) => (
+            {draft.coaches.slice(0, COACH_COUNT).map((c) => (
               <li key={c.id}>
                 <span className="coach-num sm" style={{ '--coach-color': getCoachColor(c.id) }}>{c.id}</span>
                 <input
                   type="text"
                   value={c.name}
                   onChange={(e) => updateCoach(c.id, e.target.value)}
-                  placeholder={`Allenatore ${c.id}`}
+                  placeholder={c.id === BANDITORE_COACH_ID ? 'Banditore' : `Allenatore ${c.id}`}
                 />
-                <button
-                  type="button"
-                  className="btn-setup-remove"
-                  onClick={() => removeCoach(c.id)}
-                  disabled={draft.coaches.length <= 1}
-                  title="Rimuovi allenatore"
-                  aria-label={`Rimuovi ${c.name}`}
-                >
-                  ×
-                </button>
+                {c.id === BANDITORE_COACH_ID && <span className="picker-tag">Banditore</span>}
               </li>
             ))}
           </ul>
@@ -1117,7 +1055,7 @@ export function AuctionUI({
                   <span className="coach-num sm" style={{ '--coach-color': getCoachColor(c.id) }}>{c.id}</span>
                   <span className="admin-coach-name">{getCoachDisplayName(c)}</span>
                   <span className="admin-coach-budget">{c.budget} cr.</span>
-                  {onRemoveCoach && (
+                  {onRemoveCoach && c.id !== BANDITORE_COACH_ID && (
                     <button
                       type="button"
                       className="admin-coach-remove"

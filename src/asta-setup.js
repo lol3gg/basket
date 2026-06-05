@@ -15,11 +15,15 @@ export const COACH_COLORS = [
 ];
 
 export const PLAYER_COUNT = 16;
+export const COACH_COUNT = 8;
+export const BANDITORE_COACH_ID = 1;
+/** @deprecated Usa BANDITORE_COACH_ID (coach id 1) */
 export const BANDITORE_KEY = 'banditore';
 export const BANDITORE_PASSWORD = 'carletti';
 
-export function isBanditoreRole(roleOrId) {
-  return roleOrId === BANDITORE_KEY;
+export function isBanditoreRole(coachId) {
+  if (coachId === BANDITORE_KEY) return true;
+  return Number(coachId) === BANDITORE_COACH_ID;
 }
 
 export function getJoinedCoaches(coaches) {
@@ -41,6 +45,9 @@ export function joinCoachIntoState(coaches, requestedId, name, budget = INITIAL_
   if (reqId) {
     const byRequestedId = list.find((c) => c.id === reqId);
     if (byRequestedId) {
+      if (byRequestedId.online) {
+        return { coaches: list, coachId: null, error: 'Questo allenatore è già connesso' };
+      }
       return {
         coaches: list.map((c) => (
           c.id === reqId ? { ...c, name: trimmedName || c.name, online: true } : c
@@ -52,6 +59,9 @@ export function joinCoachIntoState(coaches, requestedId, name, budget = INITIAL_
 
   const byName = list.find((c) => c.name.trim() === trimmedName);
   if (byName) {
+    if (byName.online) {
+      return { coaches: list, coachId: null, error: 'Questo allenatore è già connesso' };
+    }
     return {
       coaches: list.map((c) => (c.id === byName.id ? { ...c, online: true } : c)),
       coachId: byName.id,
@@ -71,9 +81,9 @@ export function getDefaultSetup() {
       role: ['G', 'A', 'C'][i % 3],
       team: '—',
     })),
-    coaches: Array.from({ length: 4 }, (_, i) => ({
+    coaches: Array.from({ length: COACH_COUNT }, (_, i) => ({
       id: i + 1,
-      name: `Allenatore ${i + 1}`,
+      name: i === 0 ? 'Banditore' : `Allenatore ${i + 1}`,
     })),
   };
 }
@@ -81,7 +91,16 @@ export function getDefaultSetup() {
 function normalizeSetup(parsed) {
   const defaults = getDefaultSetup();
   const players = parsed?.players?.length ? parsed.players : defaults.players;
-  const coaches = parsed?.coaches?.length ? parsed.coaches : defaults.coaches;
+  let coaches = parsed?.coaches?.length ? [...parsed.coaches] : [...defaults.coaches];
+  while (coaches.length < COACH_COUNT) {
+    const nextId = coaches.length + 1;
+    coaches.push({ id: nextId, name: nextId === 1 ? 'Banditore' : `Allenatore ${nextId}` });
+  }
+  coaches = coaches.slice(0, COACH_COUNT).map((c, i) => ({
+    ...c,
+    id: i + 1,
+    name: (c.name || '').trim() || (i === 0 ? 'Banditore' : `Allenatore ${i + 1}`),
+  }));
   return { players, coaches };
 }
 
@@ -172,8 +191,8 @@ export function clearDeepLinkFromUrl() {
   window.history.replaceState({}, '', url.pathname + (search ? `?${search}` : '') + url.hash);
 }
 
-export function buildInitialCoaches() {
-  return [];
+export function getSetupCoaches() {
+  return loadSetup().coaches.slice(0, COACH_COUNT);
 }
 
 export function setupPlayerToGamePlayer(p) {

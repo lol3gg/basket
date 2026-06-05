@@ -28,7 +28,7 @@ import {
   saveSetup,
   loadSetup,
   mergeSetupIntoPlayers,
-  isMobileDevice,
+  BANDITORE_COACH_ID,
   BANDITORE_KEY,
   isBanditoreRole,
   joinCoachIntoState,
@@ -38,11 +38,10 @@ import {
   clearDeepLinkFromUrl,
   createJoinRequestId,
 } from './asta-setup.js';
-import { buildRestartPlayerState, removeCoachFromState } from './asta-logic.js';
+import { buildRestartPlayerState, disconnectCoachFromState } from './asta-logic.js';
 import {
   AuctionUI,
-  BanditoreRoomEntry,
-  MobileRoomEntry,
+  RoomEntryScreen,
   CoachMobileUI,
   CoachJoinPending,
   SetupScreen,
@@ -53,9 +52,17 @@ const JOIN_RETRY_MS = 2000;
 const COACH_EXIT_CONFIRM = 'Se esci non potrai rientrare con lo stesso profilo.\n\nDovrai entrare di nuovo come nuovo allenatore.\n\nConfermi l\'uscita?';
 
 function parseSavedCoachId(saved) {
-  if (!saved || isBanditoreRole(saved)) return null;
+  if (!saved) return null;
+  if (saved === BANDITORE_KEY) return BANDITORE_COACH_ID;
   const parsed = Number(saved);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function seedCoachesFromSetup(existingCoaches = [], banditoreOnline = false) {
+  const setup = loadSetup();
+  return setupCoachesToGameCoaches(setup.coaches, existingCoaches).map((c) => (
+    banditoreOnline && c.id === BANDITORE_COACH_ID ? { ...c, online: true } : c
+  ));
 }
 
 const COACH_STORAGE_KEY = 'asta_coach_id';
@@ -65,8 +72,7 @@ const BID_INCREMENT = 1;
 
 const INITIAL_DEEP_LINK = parseDeepLinkFromUrl();
 
-function buildInitialState() {
-  const setup = loadSetup();
+function buildInitialState(banditoreOnline = false) {
   return {
     currentPlayer: null,
     currentBid: 0,
@@ -74,7 +80,7 @@ function buildInitialState() {
     timer: AUCTION_SECONDS,
     phase: 'idle',
     isRunning: false,
-    coaches: setupCoachesToGameCoaches(setup.coaches),
+    coaches: seedCoachesFromSetup([], banditoreOnline),
     players: buildInitialPlayers(),
     log: [{ text: 'Asta pronta. Il banditore può avviare.', timestamp: Date.now() }],
   };
@@ -124,10 +130,10 @@ export default function AstaTorneo() {
 
 function AstaTorneoAbly() {
   const [coachId, setCoachId] = useState(() => {
+    if (INITIAL_DEEP_LINK?.coachId === BANDITORE_COACH_ID) return BANDITORE_COACH_ID;
     if (INITIAL_DEEP_LINK) return null;
     const saved = localStorage.getItem(COACH_STORAGE_KEY);
-    if (!saved) return null;
-    return isBanditoreRole(saved) ? BANDITORE_KEY : Number(saved);
+    return parseSavedCoachId(saved);
   });
   const [stanzaCode, setStanzaCode] = useState(() => (
     INITIAL_DEEP_LINK?.stanza ?? localStorage.getItem(STANZA_STORAGE_KEY) ?? ''
@@ -136,20 +142,16 @@ function AstaTorneoAbly() {
     if (INITIAL_DEEP_LINK) return false;
     const savedCoach = localStorage.getItem(COACH_STORAGE_KEY);
     const savedStanza = localStorage.getItem(STANZA_STORAGE_KEY);
-    if (!savedStanza || !savedCoach) return true;
-    if (isMobileDevice() && savedCoach === BANDITORE_KEY) return true;
-    if (!isMobileDevice() && savedCoach !== BANDITORE_KEY) return true;
-    return false;
+    return !savedStanza || !savedCoach;
   });
-  const [pendingJoin, setPendingJoin] = useState(() => (
-    INITIAL_DEEP_LINK
-      ? {
-        requestId: createJoinRequestId(),
-        name: INITIAL_DEEP_LINK.name,
-        coachId: INITIAL_DEEP_LINK.coachId,
-      }
-      : null
-  ));
+  const [pendingJoin, setPendingJoin] = useState(() => {
+    if (!INITIAL_DEEP_LINK || INITIAL_DEEP_LINK.coachId === BANDITORE_COACH_ID) return null;
+    return {
+      requestId: createJoinRequestId(),
+      name: INITIAL_DEEP_LINK.name,
+      coachId: INITIAL_DEEP_LINK.coachId,
+    };
+  });
   const [joinError, setJoinError] = useState('');
   const [showSetup, setShowSetup] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -182,7 +184,11 @@ function AstaTorneoAbly() {
   useEffect(() => {
     if (!INITIAL_DEEP_LINK) return;
     localStorage.setItem(STANZA_STORAGE_KEY, INITIAL_DEEP_LINK.stanza);
-    localStorage.removeItem(COACH_STORAGE_KEY);
+    if (INITIAL_DEEP_LINK.coachId === BANDITORE_COACH_ID) {
+      localStorage.setItem(COACH_STORAGE_KEY, String(BANDITORE_COACH_ID));
+    } else {
+      localStorage.removeItem(COACH_STORAGE_KEY);
+    }
     clearDeepLinkFromUrl();
   }, []);
 
@@ -253,16 +259,19 @@ function AstaTorneoAbly() {
 
       const state = gameStateRef.current;
       const trimmedName = name.trim();
-      const setup = loadSetup();
-      const seededCoaches = setupCoachesToGameCoaches(setup.coaches, state.coaches);
-      const { coaches, coachId: targetId } = joinCoachIntoState(
+      const seededCoaches = seedCoachesFromSetup(state.coaches);
+      const result = joinCoachIntoState(
         seededCoaches,
         requestedId,
         trimmedName,
         INITIAL_BUDGET,
       );
-      publishState(appendLog({ ...state, coaches }, `${trimmedName} si è unito all'asta`));
-      channel.publish('join-ack', { requestId, coachId: targetId }).catch(console.error);
+      if (result.error) {
+        channel.publish('join-ack', { requestId, error: result.error }).catch(console.error);
+        return;
+      }
+      publishState(appendLog({ ...state, coaches: result.coaches }, `${trimmedName} si è unito all'asta`));
+      channel.publish('join-ack', { requestId, coachId: result.coachId }).catch(console.error);
     };
 
     const onLeaveRequest = (msg) => {
@@ -271,8 +280,11 @@ function AstaTorneoAbly() {
       const state = gameStateRef.current;
       const coach = state.coaches.find((c) => c.id === id);
       if (!coach) return;
-      const next = removeCoachFromState(state, id);
-      publishState(appendLog(next, `${coach.name} ha lasciato l'asta`));
+      const next = {
+        ...state,
+        coaches: state.coaches.map((c) => (c.id === id ? { ...c, online: false } : c)),
+      };
+      publishState(appendLog(next, `${coach.name} si è disconnesso`));
     };
 
     if (isAuctioneer) {
@@ -286,7 +298,7 @@ function AstaTorneoAbly() {
       if (lastState?.data) {
         applyState(lastState.data);
       } else if (isAuctioneerRef.current) {
-        publishState(buildInitialState());
+        publishState(buildInitialState(true));
       }
     }).catch(console.error);
 
@@ -368,7 +380,7 @@ function AstaTorneoAbly() {
       });
 
       if (joinAttemptsRef.current >= JOIN_MAX_ATTEMPTS) {
-        setJoinError('Banditore non raggiungibile. Apri prima la dashboard sul PC con lo stesso codice stanza.');
+        setJoinError('Banditore non raggiungibile. Assicurati che il coach 1 (Banditore) abbia aperto la stanza.');
       }
     };
 
@@ -411,7 +423,8 @@ function AstaTorneoAbly() {
       coachRegisteredRef.current = false;
       return;
     }
-    if (coaches.some((c) => c.id === coachId)) {
+    const myCoach = coaches.find((c) => c.id === coachId);
+    if (myCoach?.online) {
       coachRegisteredRef.current = true;
       return;
     }
@@ -513,39 +526,33 @@ function AstaTorneoAbly() {
     publishState(next);
   };
 
-  const joinAsBanditore = (code) => {
+  const joinRoom = (code, selectedCoachId, coachName) => {
     const normalized = code.trim().toUpperCase();
-    if (!normalized) return;
+    const trimmedName = coachName.trim();
+    if (!normalized || !selectedCoachId || !trimmedName) return;
+
     localStorage.setItem(STANZA_STORAGE_KEY, normalized);
-    localStorage.setItem(COACH_STORAGE_KEY, BANDITORE_KEY);
     setStanzaCode(normalized);
-    setCoachId(BANDITORE_KEY);
-    setPendingJoin(null);
     setShowRoomEntry(false);
     setBidError('');
     setActionError('');
     setJoinError('');
-  };
 
-  const joinAsCoach = (code, name) => {
-    const normalized = code.trim().toUpperCase();
-    const trimmedName = name.trim();
-    if (!normalized || !trimmedName) return;
-    const savedId = parseSavedCoachId(localStorage.getItem(COACH_STORAGE_KEY));
-    localStorage.setItem(STANZA_STORAGE_KEY, normalized);
+    if (isBanditoreRole(selectedCoachId)) {
+      localStorage.setItem(COACH_STORAGE_KEY, String(BANDITORE_COACH_ID));
+      setCoachId(BANDITORE_COACH_ID);
+      setPendingJoin(null);
+      return;
+    }
+
     localStorage.removeItem(COACH_STORAGE_KEY);
-    setStanzaCode(normalized);
     setCoachId(null);
     joinAttemptsRef.current = 0;
     setPendingJoin({
       requestId: createJoinRequestId(),
       name: trimmedName,
-      coachId: savedId,
+      coachId: selectedCoachId,
     });
-    setShowRoomEntry(false);
-    setBidError('');
-    setActionError('');
-    setJoinError('');
   };
 
   const cancelPendingJoin = () => {
@@ -580,18 +587,18 @@ function AstaTorneoAbly() {
   };
 
   const handleRemoveCoach = useCallback((targetCoachId) => {
-    if (!isAuctioneer) return;
+    if (!isAuctioneer || targetCoachId === BANDITORE_COACH_ID) return;
     const state = gameStateRef.current;
     const coach = state.coaches.find((c) => c.id === targetCoachId);
     if (!coach) return;
     if (!window.confirm(`Rimuovere ${coach.name} dall'asta?\n\nI suoi giocatori torneranno disponibili.`)) return;
-    const next = removeCoachFromState(state, targetCoachId);
+    const next = disconnectCoachFromState(state, targetCoachId, INITIAL_BUDGET);
     publishState(appendLog(next, `${coach.name} rimosso dal banditore`));
   }, [isAuctioneer, publishState]);
 
   const handleInitSetup = () => {
     if (!isAuctioneer) return;
-    publishState(buildInitialState());
+    publishState(buildInitialState(true));
     setActionError('');
   };
 
@@ -735,9 +742,13 @@ function AstaTorneoAbly() {
   };
 
   if (showRoomEntry) {
-    return isMobileDevice()
-      ? <MobileRoomEntry defaultCode={stanzaCode} onJoin={joinAsCoach} />
-      : <BanditoreRoomEntry defaultCode={stanzaCode} onJoin={joinAsBanditore} />;
+    return (
+      <RoomEntryScreen
+        defaultCode={stanzaCode}
+        defaultCoachId={INITIAL_DEEP_LINK?.coachId}
+        onJoin={joinRoom}
+      />
+    );
   }
 
   if (pendingJoin && !coachId) {
@@ -745,7 +756,7 @@ function AstaTorneoAbly() {
       <CoachJoinPending
         name={pendingJoin.name}
         error={joinError}
-        hint="Assicurati che il banditore abbia già aperto la stanza sul PC."
+        hint="Il coach 1 (Banditore) deve entrare per primo e aprire la stanza."
         onBack={cancelPendingJoin}
         onRetry={joinError ? retryPendingJoin : undefined}
       />

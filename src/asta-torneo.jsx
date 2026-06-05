@@ -35,12 +35,14 @@ import {
   joinCoachIntoState,
   addSetupPlayer,
   createJoinRequestId,
+  isMobileDevice,
 } from './asta-setup.js';
 import { buildRestartPlayerState, disconnectCoachFromState } from './asta-logic.js';
 import { isAuctionComplete } from './exportAstaPdf.js';
 import {
   AuctionUI,
-  EntryScreen,
+  BanditoreEntryScreen,
+  CoachEntryScreen,
   FinalResultsScreen,
   CoachMobileUI,
   CoachJoinPending,
@@ -741,8 +743,16 @@ function AstaTorneoAbly() {
   };
 
   if (showRoomEntry) {
+    if (isMobileDevice()) {
+      return (
+        <CoachEntryScreen
+          defaultStanza={stanzaCode}
+          onJoin={joinRoom}
+        />
+      );
+    }
     return (
-      <EntryScreen
+      <BanditoreEntryScreen
         defaultStanza={stanzaCode}
         onJoin={joinRoom}
       />

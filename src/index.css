@@ -1648,6 +1648,22 @@ body::before {
   margin-left: 0.5rem;
 }
 
+.setup-players-head {
+  margin-bottom: 0.35rem;
+}
+
+.setup-players-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.setup-clear-btn {
+  border-color: rgba(220, 80, 60, 0.45);
+  color: #ffb4a8;
+}
+
 .setup-empty {
   padding: 1rem 0.75rem;
   text-align: center;
@@ -2177,6 +2193,12 @@ body::before {
 
 .room-entry-banditore {
   text-align: center;
+}
+
+.room-entry-banditore .room-hint {
+  margin-bottom: 1.25rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .room-entry-banditore .btn-cta-lg {

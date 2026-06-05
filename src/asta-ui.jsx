@@ -8,6 +8,7 @@ import {
   splitPlayerName,
   createSetupPlayer,
   getDemoSetup,
+  getEmptySetup,
   getAppBaseUrl,
   buildShareInviteMessage,
   isMobileDevice,
@@ -300,6 +301,174 @@ export function FinalResultsScreen({
   );
 }
 
+export function BanditoreEntryScreen({ defaultStanza = '', onJoin }) {
+  const [stanza, setStanza] = useState(defaultStanza);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleJoin = () => {
+    const stanzaNorm = stanza.trim().toUpperCase();
+    if (!stanzaNorm) {
+      setError('Inserisci il codice stanza.');
+      return;
+    }
+    if (password !== BANDITORE_PASSWORD) {
+      setError('Password banditore non valida.');
+      return;
+    }
+    setError('');
+    onJoin({ stanza: stanzaNorm, name: 'Banditore', role: 'banditore' });
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleJoin();
+  };
+
+  const canSubmit = stanza.trim() && password;
+
+  return (
+    <div className="app dash">
+      <header className="dash-header">
+        <div className="dash-brand">
+          <div className="arena-line" />
+          <h1 className="arena-title">{APP_TITLE}</h1>
+          <div className="arena-line" />
+        </div>
+        <p className="dash-subtitle">Accesso banditore — dashboard asta</p>
+      </header>
+
+      <div className="room-entry room-entry-banditore room-entry-unified">
+        <p className="room-hint muted">
+          Gli allenatori entrano solo dal link che invii dal Setup
+        </p>
+
+        <label className="room-label" htmlFor="banditore-stanza">Codice stanza</label>
+        <input
+          id="banditore-stanza"
+          type="text"
+          className="room-input"
+          placeholder="es. TORNEO2025"
+          value={stanza}
+          onChange={(e) => setStanza(e.target.value.toUpperCase())}
+          onKeyDown={handleKeyDown}
+          autoComplete="off"
+          autoFocus
+        />
+
+        <label className="room-label" htmlFor="banditore-password">Password banditore</label>
+        <input
+          id="banditore-password"
+          type="password"
+          className="room-input room-input-sm"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (error) setError('');
+          }}
+          onKeyDown={handleKeyDown}
+          autoComplete="current-password"
+        />
+
+        {error && (
+          <p className="room-password-alert alert" role="alert">{error}</p>
+        )}
+
+        <button
+          type="button"
+          className="btn-cta btn-cta-lg room-enter-btn"
+          disabled={!canSubmit}
+          onClick={handleJoin}
+        >
+          ENTRA COME BANDITORE
+        </button>
+
+        <div className="room-fullscreen-row">
+          <FullscreenToggle className="btn-secondary btn-fullscreen" />
+          <span className="muted room-fullscreen-hint">Esc per uscire dallo schermo intero</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function CoachEntryScreen({ defaultStanza = '', onJoin }) {
+  const [stanza, setStanza] = useState(defaultStanza);
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+
+  const handleJoin = () => {
+    const stanzaNorm = stanza.trim().toUpperCase();
+    const nameTrim = name.trim();
+    if (!stanzaNorm || !nameTrim) {
+      setError('Compila codice stanza e il tuo nome.');
+      return;
+    }
+    setError('');
+    onJoin({ stanza: stanzaNorm, name: nameTrim, role: 'coach' });
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleJoin();
+  };
+
+  const canSubmit = stanza.trim() && name.trim();
+
+  return (
+    <div className="app mobile-coach">
+      <p className="mobile-app-brand mobile-app-brand-center">{APP_TITLE}</p>
+      <div className="mobile-coach-header">
+        <h2 className="mobile-coach-title">Entra in asta</h2>
+        <p className="mobile-coach-sub">Inserisci codice stanza e il tuo nome</p>
+      </div>
+
+      <div className="mobile-entry-form">
+        <label className="room-label" htmlFor="coach-stanza">Codice stanza</label>
+        <input
+          id="coach-stanza"
+          type="text"
+          className="mobile-name-input"
+          placeholder="es. TORNEO2025"
+          value={stanza}
+          onChange={(e) => setStanza(e.target.value.toUpperCase())}
+          onKeyDown={handleKeyDown}
+          autoComplete="off"
+        />
+
+        <label className="room-label" htmlFor="coach-name">Il tuo nome</label>
+        <input
+          id="coach-name"
+          type="text"
+          className="mobile-name-input"
+          placeholder="es. Marco"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={handleKeyDown}
+          autoComplete="name"
+        />
+
+        {error && (
+          <p className="room-password-alert alert" role="alert">{error}</p>
+        )}
+
+        <button
+          type="button"
+          className="btn-cta btn-cta-lg"
+          disabled={!canSubmit}
+          onClick={handleJoin}
+        >
+          ENTRA
+        </button>
+      </div>
+
+      <p className="mobile-invite-hint muted">
+        Usa il link inviato dal banditore. Deve aver già aperto la stanza sul PC.
+      </p>
+    </div>
+  );
+}
+
+/** @deprecated Usa BanditoreEntryScreen o CoachEntryScreen */
 export function EntryScreen({ defaultStanza = '', onJoin }) {
   const [stanza, setStanza] = useState(defaultStanza);
   const [name, setName] = useState('');
@@ -797,6 +966,16 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '' }) {
     onSave(demo);
   };
 
+  const clearAllPlayers = () => {
+    if (!window.confirm(
+      'Eliminare tutti i giocatori dalla lista?\n\nDovrai aggiungerli di nuovo manualmente o usare Demo.',
+    )) return;
+    const empty = getEmptySetup();
+    setDraft(empty);
+    saveSetup(empty);
+    onSave(empty);
+  };
+
   const handleSave = () => {
     saveSetup(draft);
     onSave(draft);
@@ -810,22 +989,29 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '' }) {
       />
       <div className="setup-grid setup-grid-single">
         <section className="dash-panel setup-players-panel">
-          <div className="panel-head">
+          <div className="panel-head setup-players-head">
             <h2 className="panel-title">Giocatori in asta</h2>
             <span className="panel-count">{draft.players.length} totali</span>
-            <button type="button" className="btn-secondary setup-add-btn" onClick={() => setShowAddPlayerModal(true)}>
+          </div>
+          <div className="setup-players-toolbar">
+            <button type="button" className="btn-secondary" onClick={() => setShowAddPlayerModal(true)}>
               + Aggiungi giocatore
             </button>
             <button type="button" className="btn-secondary setup-demo-btn" onClick={loadDemo}>
-              Carica demo
+              Demo
             </button>
+            {draft.players.length > 0 && (
+              <button type="button" className="btn-secondary setup-clear-btn" onClick={clearAllPlayers}>
+                Elimina tutti i giocatori
+              </button>
+            )}
           </div>
           <p className="setup-note muted">
-            Gli allenatori si uniscono da soli all&apos;ingresso. Aggiungi i giocatori qui o usa Carica demo per provare.
+            Lista vuota all&apos;inizio. Aggiungi i giocatori uno a uno, oppure Demo per 16 giocatori finti.
           </p>
           <ul className="setup-list players">
             {draft.players.length === 0 && (
-              <li className="setup-empty muted">Nessun giocatore — aggiungine uno o carica la demo.</li>
+              <li className="setup-empty muted">Nessun giocatore — usa + Aggiungi giocatore o Demo.</li>
             )}
             {draft.players.map((p) => (
               <li key={p.id}>

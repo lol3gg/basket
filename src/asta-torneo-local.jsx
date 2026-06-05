@@ -11,10 +11,11 @@ import {
   isBanditoreRole,
   joinCoachIntoState,
   addSetupPlayer,
+  isMobileDevice,
 } from './asta-setup.js';
 import { buildRestartPlayerState, removeCoachFromState } from './asta-logic.js';
 import { isAuctionComplete } from './exportAstaPdf.js';
-import { AuctionUI, CoachMobileUI, EntryScreen, FinalResultsScreen, SetupScreen } from './asta-ui.jsx';
+import { AuctionUI, BanditoreEntryScreen, CoachEntryScreen, CoachMobileUI, FinalResultsScreen, SetupScreen } from './asta-ui.jsx';
 
 const COACH_STORAGE_KEY = 'asta_coach_id';
 const STANZA_STORAGE_KEY = 'asta_stanza_code';
@@ -406,8 +407,16 @@ export function AstaTorneoLocal() {
   }, [coaches, coachId, isAuctioneer, showEntry]);
 
   if (showEntry) {
+    if (isMobileDevice()) {
+      return (
+        <CoachEntryScreen
+          defaultStanza={stanzaCode || LOCAL_STANZA}
+          onJoin={joinRoom}
+        />
+      );
+    }
     return (
-      <EntryScreen
+      <BanditoreEntryScreen
         defaultStanza={stanzaCode || LOCAL_STANZA}
         onJoin={joinRoom}
       />

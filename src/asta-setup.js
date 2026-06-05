@@ -103,8 +103,15 @@ function normalizeSetup(parsed) {
   return { players, coaches: [] };
 }
 
+export function getEmptySetup() {
+  return getDefaultSetup();
+}
+
 export function loadSetup() {
   try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('asta_setup_v1');
+    }
     const raw = localStorage.getItem(SETUP_STORAGE_KEY);
     if (!raw) return getDefaultSetup();
     return normalizeSetup(JSON.parse(raw));

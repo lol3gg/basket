@@ -17,7 +17,7 @@ import {
   BANDITORE_COACH_ID,
   BANDITORE_PASSWORD,
 } from './asta-setup.js';
-import { useAuctionBeep, useBidSound, usePlayerStartSound, playBidFeedback, URGENT_TIMER_SECONDS } from './useAuctionBeep.js';
+import { useAuctionBeep, useBidSound, usePlayerStartSound, useCoachJoinAlert, playBidFeedback, URGENT_TIMER_SECONDS } from './useAuctionBeep.js';
 import { FullscreenToggle } from './useFullscreen.jsx';
 import { buildCoachRankings, exportAstaPdf } from './exportAstaPdf.js';
 
@@ -904,6 +904,7 @@ export function AuctionUI({
 }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
+  const [joinBanner, setJoinBanner] = useState(null);
 
   const isAuctioneer = isBanditoreRole(coachId);
   const joinedCoaches = getJoinedCoaches(coaches);
@@ -949,6 +950,16 @@ export function AuctionUI({
     currentBid,
     timer,
     maxTimer: AUCTION_SECONDS,
+  });
+
+  useCoachJoinAlert({
+    log,
+    enabled: isAuctioneer,
+    announceVoice: isAuctioneer && !isMobileDevice(),
+    onJoin: (name) => {
+      setJoinBanner(name);
+      window.setTimeout(() => setJoinBanner(null), 6000);
+    },
   });
 
   const bidAmounts = [
@@ -1002,6 +1013,12 @@ export function AuctionUI({
       />
 
       {(actionError || bidError) && <div className="alert">{actionError || bidError}</div>}
+
+      {joinBanner && (
+        <div className="coach-join-banner" role="status">
+          {joinBanner} si è unito all&apos;asta
+        </div>
+      )}
 
       <section className="stats-row">
         <StatCard label="Disponibili" value={availablePlayers.length} sub={`su ${players.length}`} />

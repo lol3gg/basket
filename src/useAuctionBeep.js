@@ -193,6 +193,74 @@ export function usePlayerStartSound({
   }, [currentPlayerId, phase, isRunning, currentBid, timer, maxTimer]);
 }
 
+function playCoachJoinSound(ctx) {
+  const t = ctx.currentTime;
+
+  const playTone = (freq, start, duration, peak) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = freq;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(peak, start);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+    osc.start(start);
+    osc.stop(start + duration + 0.02);
+  };
+
+  playTone(523, t, 0.16, 0.3);
+  playTone(659, t + 0.14, 0.2, 0.32);
+  playTone(784, t + 0.3, 0.28, 0.34);
+}
+
+let lastCoachJoinSoundAt = 0;
+
+function playCoachJoinSoundOnce(ctx) {
+  const now = Date.now();
+  if (now - lastCoachJoinSoundAt < 500) return;
+  lastCoachJoinSoundAt = now;
+  playCoachJoinSound(ctx);
+}
+
+function announceCoachJoin(name) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(`${name} si è unito all'asta`);
+  utterance.lang = 'it-IT';
+  utterance.rate = 0.95;
+  window.speechSynthesis.speak(utterance);
+}
+
+/** Suono + voce quando un allenatore entra (banditore). */
+export function useCoachJoinAlert({ log, enabled, announceVoice = false, onJoin }) {
+  const seenRef = useRef(new Set());
+  const readyRef = useRef(false);
+  const ctxRef = useRef(null);
+
+  useEffect(() => {
+    if (!enabled || !Array.isArray(log)) return;
+
+    if (!readyRef.current) {
+      log.forEach((entry) => seenRef.current.add(entry.timestamp));
+      readyRef.current = true;
+      return;
+    }
+
+    log.forEach((entry) => {
+      const match = entry.text.match(/^(.+) si è unito all'asta$/);
+      if (!match || seenRef.current.has(entry.timestamp)) return;
+
+      seenRef.current.add(entry.timestamp);
+      const name = match[1].trim();
+      const ctx = getAudioContext(ctxRef);
+      if (ctx) runWithAudio(ctx, () => playCoachJoinSoundOnce(ctx));
+      if (announceVoice) announceCoachJoin(name);
+      onJoin?.(name);
+    });
+  }, [log, enabled, announceVoice, onJoin]);
+}
+
 /** Feedback immediato al tap del pulsante rilancio (prima della sync). */
 export function playBidFeedback() {
   const ctx = getAudioContext(sharedCtxRef);

@@ -106,6 +106,25 @@ body::before {
   text-transform: uppercase;
 }
 
+.coach-join-banner {
+  margin: 0 0 0.85rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(232, 82, 42, 0.55);
+  background: linear-gradient(135deg, rgba(232, 82, 42, 0.22), rgba(255, 140, 66, 0.12));
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  text-align: center;
+  animation: coachJoinIn 0.35s ease-out;
+}
+
+@keyframes coachJoinIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .room-entry {
   max-width: 720px;
   margin: 0 auto;

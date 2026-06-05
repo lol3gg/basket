@@ -1624,6 +1624,97 @@ body::before {
   grid-template-columns: 1fr;
 }
 
+.final-results {
+  max-width: 960px;
+  margin: 0 auto;
+  padding-bottom: 2rem;
+}
+
+.final-results-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.final-results-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+
+.final-ranking-panel {
+  margin-bottom: 1rem;
+}
+
+.final-ranking-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.final-ranking-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.final-rank {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 900;
+  font-size: 1.25rem;
+  color: var(--gold-light);
+  min-width: 1.5rem;
+}
+
+.final-rank-name {
+  flex: 1;
+  font-weight: 700;
+}
+
+.final-rank-score {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  color: var(--orange);
+}
+
+.final-coaches-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.85rem;
+}
+
+.final-coach-card {
+  border-top: 3px solid var(--coach-color, var(--orange));
+}
+
+.final-coach-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.final-roster-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.final-roster-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.88rem;
+}
+
 .room-enter-btn {
   margin-top: 0.5rem;
 }

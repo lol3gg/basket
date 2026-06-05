@@ -36,9 +36,11 @@ import {
   createJoinRequestId,
 } from './asta-setup.js';
 import { buildRestartPlayerState, disconnectCoachFromState } from './asta-logic.js';
+import { isAuctionComplete } from './exportAstaPdf.js';
 import {
   AuctionUI,
   EntryScreen,
+  FinalResultsScreen,
   CoachMobileUI,
   CoachJoinPending,
   SetupScreen,
@@ -148,6 +150,7 @@ function AstaTorneoAbly() {
   const [offline, setOffline] = useState(false);
   const [bidError, setBidError] = useState('');
   const [actionError, setActionError] = useState('');
+  const [resultsDismissed, setResultsDismissed] = useState(false);
 
   const [gameState, setGameState] = useState(buildInitialState);
   const gameStateRef = useRef(buildInitialState());
@@ -170,6 +173,12 @@ function AstaTorneoAbly() {
   } = gameState;
 
   gameStateRef.current = gameState;
+
+  useEffect(() => {
+    if (!isAuctionComplete(players, phase, isRunning)) {
+      setResultsDismissed(false);
+    }
+  }, [players, phase, isRunning]);
 
   const applyState = useCallback((data) => {
     const sanitized = sanitizeGameState(data);
@@ -745,6 +754,18 @@ function AstaTorneoAbly() {
         onSave={handleSetupSave}
         onClose={() => setShowSetup(false)}
         stanzaCode={stanzaCode}
+      />
+    );
+  }
+
+  if (coachId && isAuctionComplete(players, phase, isRunning) && !resultsDismissed) {
+    return (
+      <FinalResultsScreen
+        stanzaCode={stanzaCode}
+        coaches={coaches}
+        log={log}
+        onClose={() => setResultsDismissed(true)}
+        onChangeCoach={isAuctioneer ? leaveRoom : leaveAsCoachWithConfirm}
       />
     );
   }

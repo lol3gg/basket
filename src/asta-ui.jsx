@@ -18,6 +18,7 @@ import {
 } from './asta-setup.js';
 import { useAuctionBeep, useBidSound, usePlayerStartSound, playBidFeedback, URGENT_TIMER_SECONDS } from './useAuctionBeep.js';
 import { FullscreenToggle } from './useFullscreen.jsx';
+import { buildCoachRankings, exportAstaPdf } from './exportAstaPdf.js';
 
 const ROSTER_SLOTS = 5;
 const APP_TITLE = 'Asta Torneo Basket';
@@ -198,6 +199,103 @@ function TabBar({ active, onChange }) {
         </button>
       ))}
     </nav>
+  );
+}
+
+function formatDateTime(ts) {
+  return new Date(ts).toLocaleString('it-IT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+export function FinalResultsScreen({
+  stanzaCode,
+  coaches,
+  log,
+  onClose,
+  onChangeCoach,
+}) {
+  const rankings = buildCoachRankings(coaches);
+  const startTs = log[0]?.timestamp ?? Date.now();
+  const endTs = log[log.length - 1]?.timestamp ?? Date.now();
+
+  const handleExport = () => {
+    exportAstaPdf({ stanzaCode, coaches, log });
+  };
+
+  return (
+    <div className="app dash final-results">
+      <header className="dash-header">
+        <div className="dash-brand">
+          <div className="arena-line" />
+          <h1 className="arena-title">{APP_TITLE}</h1>
+          <div className="arena-line" />
+        </div>
+        <p className="dash-subtitle final-results-title">
+          ASTA TORNEO BASKET — {stanzaCode || 'STANZA'}
+        </p>
+        <p className="room-hint muted">
+          {formatDateTime(startTs)} → {formatDateTime(endTs)}
+        </p>
+      </header>
+
+      <section className="final-results-actions">
+        <button type="button" className="btn-cta" onClick={handleExport}>
+          Esporta PDF
+        </button>
+        <button type="button" className="btn-secondary" onClick={onClose}>
+          Torna alla dashboard
+        </button>
+        {!isMobileDevice() && <FullscreenToggle className="btn-secondary btn-fullscreen" />}
+        <button type="button" className="btn-ghost" onClick={onChangeCoach}>
+          Esci
+        </button>
+      </section>
+
+      <section className="dash-panel final-ranking-panel">
+        <h2 className="panel-title">Classifica per rating medio</h2>
+        <p className="setup-note muted">Rating = media crediti spesi per giocatore acquistato</p>
+        <ol className="final-ranking-list">
+          {rankings.map((c, i) => (
+            <li key={c.id} className="final-ranking-item">
+              <span className="final-rank">{i + 1}</span>
+              <span className="coach-num sm" style={{ '--coach-color': getCoachColor(c.id) }}>{c.id}</span>
+              <span className="final-rank-name">{getCoachDisplayName(c)}</span>
+              <span className="final-rank-score">{c.avgRating.toFixed(1)} cr./gioc.</span>
+            </li>
+          ))}
+          {rankings.length === 0 && <li className="muted">Nessun allenatore con giocatori assegnati.</li>}
+        </ol>
+      </section>
+
+      <div className="final-coaches-grid">
+        {rankings.map((c) => (
+          <section key={c.id} className="dash-panel final-coach-card" style={{ '--coach-color': getCoachColor(c.id) }}>
+            <div className="panel-head">
+              <h2 className="panel-title">{getCoachDisplayName(c)}</h2>
+              <span className="coach-num sm">{c.id}</span>
+            </div>
+            <div className="final-coach-stats">
+              <span>Budget rimasto: <strong>{c.budget} cr.</strong></span>
+              <span>Totale speso: <strong>{c.spent} cr.</strong></span>
+              <span>Rating medio: <strong>{c.avgRating.toFixed(1)}</strong></span>
+            </div>
+            <ul className="final-roster-list">
+              {c.players.map((p) => (
+                <li key={p.id}>
+                  <span>{p.name}</span>
+                  <span className="muted">{p.role} · {p.price} cr.</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </div>
   );
 }
 

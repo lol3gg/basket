@@ -12,7 +12,8 @@ import {
   addSetupPlayer,
 } from './asta-setup.js';
 import { buildRestartPlayerState, removeCoachFromState } from './asta-logic.js';
-import { AuctionUI, CoachMobileUI, EntryScreen, SetupScreen } from './asta-ui.jsx';
+import { isAuctionComplete } from './exportAstaPdf.js';
+import { AuctionUI, CoachMobileUI, EntryScreen, FinalResultsScreen, SetupScreen } from './asta-ui.jsx';
 
 const COACH_STORAGE_KEY = 'asta_coach_id';
 const STANZA_STORAGE_KEY = 'asta_stanza_code';
@@ -54,6 +55,7 @@ export function AstaTorneoLocal() {
   const [showSetup, setShowSetup] = useState(false);
   const [bidError, setBidError] = useState('');
   const [actionError, setActionError] = useState('');
+  const [resultsDismissed, setResultsDismissed] = useState(false);
 
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [currentBid, setCurrentBid] = useState(0);
@@ -76,6 +78,12 @@ export function AstaTorneoLocal() {
   const pushLog = (text) => {
     setLog((prev) => [...prev, { text, timestamp: Date.now() }].slice(-100));
   };
+
+  useEffect(() => {
+    if (!isAuctionComplete(players, phase, isRunning)) {
+      setResultsDismissed(false);
+    }
+  }, [players, phase, isRunning]);
 
   const joinRoom = ({ stanza, name, role }) => {
     const normalized = stanza.trim().toUpperCase();
@@ -395,6 +403,18 @@ export function AstaTorneoLocal() {
         onSave={handleSetupSave}
         onClose={() => setShowSetup(false)}
         stanzaCode={stanzaCode || LOCAL_STANZA}
+      />
+    );
+  }
+
+  if (coachId && isAuctionComplete(players, phase, isRunning) && !resultsDismissed) {
+    return (
+      <FinalResultsScreen
+        stanzaCode={stanzaCode || LOCAL_STANZA}
+        coaches={coaches}
+        log={log}
+        onClose={() => setResultsDismissed(true)}
+        onChangeCoach={leaveRoom}
       />
     );
   }

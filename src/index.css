@@ -2009,6 +2009,11 @@ body::before {
   margin-top: 0.5rem;
 }
 
+.mobile-invite-hint {
+  text-align: center;
+  padding: 0 1.25rem 2rem;
+}
+
 .btn-ghost-sm {
   padding: 0.3rem 0.55rem;
   font-size: 0.75rem;

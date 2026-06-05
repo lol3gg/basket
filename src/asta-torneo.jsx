@@ -31,6 +31,7 @@ import {
   BANDITORE_COACH_ID,
   BANDITORE_KEY,
   isBanditoreRole,
+  isMobileDevice,
   joinCoachIntoState,
   addSetupPlayer,
   setupCoachesToGameCoaches,
@@ -41,7 +42,8 @@ import {
 import { buildRestartPlayerState, disconnectCoachFromState } from './asta-logic.js';
 import {
   AuctionUI,
-  RoomEntryScreen,
+  BanditoreRoomEntry,
+  MobileInviteGate,
   CoachMobileUI,
   CoachJoinPending,
   SetupScreen,
@@ -128,9 +130,23 @@ export default function AstaTorneo() {
   return <AstaTorneoAbly />;
 }
 
+function shouldShowRoomEntry() {
+  if (INITIAL_DEEP_LINK) {
+    if (!isMobileDevice()) return true;
+    if (INITIAL_DEEP_LINK.coachId === BANDITORE_COACH_ID) return true;
+    return false;
+  }
+  const savedCoach = localStorage.getItem(COACH_STORAGE_KEY);
+  const savedStanza = localStorage.getItem(STANZA_STORAGE_KEY);
+  if (!savedStanza || !savedCoach) return true;
+  const parsedCoach = parseSavedCoachId(savedCoach);
+  if (!isMobileDevice() && !isBanditoreRole(parsedCoach)) return true;
+  if (isMobileDevice() && isBanditoreRole(parsedCoach)) return true;
+  return false;
+}
+
 function AstaTorneoAbly() {
   const [coachId, setCoachId] = useState(() => {
-    if (INITIAL_DEEP_LINK?.coachId === BANDITORE_COACH_ID) return BANDITORE_COACH_ID;
     if (INITIAL_DEEP_LINK) return null;
     const saved = localStorage.getItem(COACH_STORAGE_KEY);
     return parseSavedCoachId(saved);
@@ -138,14 +154,10 @@ function AstaTorneoAbly() {
   const [stanzaCode, setStanzaCode] = useState(() => (
     INITIAL_DEEP_LINK?.stanza ?? localStorage.getItem(STANZA_STORAGE_KEY) ?? ''
   ));
-  const [showRoomEntry, setShowRoomEntry] = useState(() => {
-    if (INITIAL_DEEP_LINK) return false;
-    const savedCoach = localStorage.getItem(COACH_STORAGE_KEY);
-    const savedStanza = localStorage.getItem(STANZA_STORAGE_KEY);
-    return !savedStanza || !savedCoach;
-  });
+  const [showRoomEntry, setShowRoomEntry] = useState(shouldShowRoomEntry);
   const [pendingJoin, setPendingJoin] = useState(() => {
     if (!INITIAL_DEEP_LINK || INITIAL_DEEP_LINK.coachId === BANDITORE_COACH_ID) return null;
+    if (!isMobileDevice()) return null;
     return {
       requestId: createJoinRequestId(),
       name: INITIAL_DEEP_LINK.name,
@@ -183,10 +195,8 @@ function AstaTorneoAbly() {
 
   useEffect(() => {
     if (!INITIAL_DEEP_LINK) return;
-    localStorage.setItem(STANZA_STORAGE_KEY, INITIAL_DEEP_LINK.stanza);
-    if (INITIAL_DEEP_LINK.coachId === BANDITORE_COACH_ID) {
-      localStorage.setItem(COACH_STORAGE_KEY, String(BANDITORE_COACH_ID));
-    } else {
+    if (isMobileDevice() && INITIAL_DEEP_LINK.coachId !== BANDITORE_COACH_ID) {
+      localStorage.setItem(STANZA_STORAGE_KEY, INITIAL_DEEP_LINK.stanza);
       localStorage.removeItem(COACH_STORAGE_KEY);
     }
     clearDeepLinkFromUrl();
@@ -526,33 +536,19 @@ function AstaTorneoAbly() {
     publishState(next);
   };
 
-  const joinRoom = (code, selectedCoachId, coachName) => {
+  const joinAsBanditore = (code) => {
     const normalized = code.trim().toUpperCase();
-    const trimmedName = coachName.trim();
-    if (!normalized || !selectedCoachId || !trimmedName) return;
+    if (!normalized) return;
 
     localStorage.setItem(STANZA_STORAGE_KEY, normalized);
+    localStorage.setItem(COACH_STORAGE_KEY, String(BANDITORE_COACH_ID));
     setStanzaCode(normalized);
+    setCoachId(BANDITORE_COACH_ID);
+    setPendingJoin(null);
     setShowRoomEntry(false);
     setBidError('');
     setActionError('');
     setJoinError('');
-
-    if (isBanditoreRole(selectedCoachId)) {
-      localStorage.setItem(COACH_STORAGE_KEY, String(BANDITORE_COACH_ID));
-      setCoachId(BANDITORE_COACH_ID);
-      setPendingJoin(null);
-      return;
-    }
-
-    localStorage.removeItem(COACH_STORAGE_KEY);
-    setCoachId(null);
-    joinAttemptsRef.current = 0;
-    setPendingJoin({
-      requestId: createJoinRequestId(),
-      name: trimmedName,
-      coachId: selectedCoachId,
-    });
   };
 
   const cancelPendingJoin = () => {
@@ -742,11 +738,14 @@ function AstaTorneoAbly() {
   };
 
   if (showRoomEntry) {
+    if (isMobileDevice()) {
+      const variant = INITIAL_DEEP_LINK?.coachId === BANDITORE_COACH_ID ? 'banditore' : 'invite';
+      return <MobileInviteGate variant={variant} />;
+    }
     return (
-      <RoomEntryScreen
-        defaultCode={stanzaCode}
-        defaultCoachId={INITIAL_DEEP_LINK?.coachId}
-        onJoin={joinRoom}
+      <BanditoreRoomEntry
+        defaultCode={stanzaCode || INITIAL_DEEP_LINK?.stanza || ''}
+        onJoin={joinAsBanditore}
       />
     );
   }

@@ -16,6 +16,7 @@ import {
   getJoinedCoaches,
   getSetupCoaches,
   BANDITORE_COACH_ID,
+  BANDITORE_PASSWORD,
   COACH_COUNT,
 } from './asta-setup.js';
 import { useAuctionBeep, useBidSound, usePlayerStartSound, playBidFeedback, URGENT_TIMER_SECONDS } from './useAuctionBeep.js';
@@ -201,6 +202,145 @@ function TabBar({ active, onChange }) {
   );
 }
 
+export function BanditoreRoomEntry({ defaultCode, onJoin }) {
+  const [code, setCode] = useState(defaultCode || '');
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
+  const handleJoin = () => {
+    const normalized = code.trim().toUpperCase();
+    if (!normalized) return;
+    if (password !== BANDITORE_PASSWORD) {
+      setPasswordError('Password non valida');
+      return;
+    }
+    setPasswordError('');
+    onJoin(normalized);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleJoin();
+  };
+
+  return (
+    <div className="app dash">
+      <header className="dash-header">
+        <div className="dash-brand">
+          <div className="arena-line" />
+          <h1 className="arena-title">{APP_TITLE}</h1>
+          <div className="arena-line" />
+        </div>
+        <p className="dash-subtitle">Accesso banditore — dashboard asta</p>
+        <p className="room-hint muted">Gli allenatori entrano solo dal link che invii dal Setup</p>
+      </header>
+
+      <div className="room-entry room-entry-banditore">
+        <label className="room-label" htmlFor="stanza-code">Codice stanza</label>
+        <input
+          id="stanza-code"
+          type="text"
+          className="room-input"
+          placeholder="es. TORNEO2025"
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          onKeyDown={handleKeyDown}
+          autoComplete="off"
+        />
+
+        <label className="room-label" htmlFor="banditore-password">Password banditore</label>
+        <input
+          id="banditore-password"
+          type="password"
+          className="room-input room-input-sm"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (passwordError) setPasswordError('');
+          }}
+          onKeyDown={handleKeyDown}
+          autoComplete="current-password"
+        />
+
+        {passwordError && (
+          <p className="room-password-alert alert" role="alert">{passwordError}</p>
+        )}
+
+        <button
+          type="button"
+          className="btn-cta btn-cta-lg"
+          disabled={!code.trim() || !password}
+          onClick={handleJoin}
+        >
+          Entra come banditore
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function MobileInviteGate({ variant = 'invite' }) {
+  const isBanditoreHint = variant === 'banditore';
+  return (
+    <div className="app mobile-coach">
+      <header className="mobile-coach-header">
+        <h1 className="mobile-coach-title">{APP_TITLE}</h1>
+        <p className="mobile-coach-sub">
+          {isBanditoreHint
+            ? 'Il banditore accede solo dal PC con codice stanza e password.'
+            : 'Apri il link personale inviato dal banditore per entrare nell\'asta.'}
+        </p>
+      </header>
+      {!isBanditoreHint && (
+        <p className="room-hint muted mobile-invite-hint">
+          Chiedi al banditore di condividere il tuo link dalla schermata Setup.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Ingresso allenatore via link (codice precompilato, slot già scelto) */
+export function CoachLinkEntry({ defaultCode, coachName, onJoin }) {
+  const [code, setCode] = useState(defaultCode || '');
+
+  const handleJoin = () => {
+    const normalized = code.trim().toUpperCase();
+    if (!normalized) return;
+    onJoin(normalized);
+  };
+
+  return (
+    <div className="app mobile-coach">
+      <header className="mobile-coach-header">
+        <h1 className="mobile-coach-title">{APP_TITLE}</h1>
+        <p className="mobile-coach-sub">Entra come {coachName}</p>
+      </header>
+      <div className="mobile-entry-form">
+        <label className="room-label" htmlFor="coach-stanza-code">Codice stanza</label>
+        <input
+          id="coach-stanza-code"
+          type="text"
+          className="mobile-name-input"
+          placeholder="es. TORNEO2025"
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          autoComplete="off"
+        />
+        <button
+          type="button"
+          className="btn-cta btn-cta-lg"
+          disabled={!code.trim()}
+          onClick={handleJoin}
+        >
+          Entra nell&apos;asta
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** @deprecated Usa BanditoreRoomEntry o MobileInviteGate */
 export function RoomEntryScreen({ defaultCode, defaultCoachId, onJoin }) {
   const coaches = getSetupCoaches();
   const [code, setCode] = useState(defaultCode || '');
@@ -268,14 +408,9 @@ export function RoomEntryScreen({ defaultCode, defaultCoachId, onJoin }) {
   );
 }
 
-/** @deprecated Usa RoomEntryScreen */
-export function BanditoreRoomEntry(props) {
-  return <RoomEntryScreen {...props} defaultCoachId={BANDITORE_COACH_ID} />;
-}
-
-/** @deprecated Usa RoomEntryScreen */
+/** @deprecated Usa MobileInviteGate o CoachLinkEntry */
 export function MobileRoomEntry(props) {
-  return <RoomEntryScreen {...props} />;
+  return <MobileInviteGate {...props} />;
 }
 
 export function MobileLocalEntry({ onJoin }) {

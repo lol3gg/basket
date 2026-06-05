@@ -5,6 +5,7 @@ import {
   loadSetup,
   saveSetup,
   mergeSetupIntoPlayers,
+  getDemoSetup,
   BANDITORE_COACH_ID,
   BANDITORE_KEY,
   isBanditoreRole,
@@ -217,6 +218,22 @@ export function AstaTorneoLocal() {
     setPhase('idle');
     setIsRunning(false);
     setLog([{ text: 'Setup resettato.', timestamp: Date.now() }]);
+    setActionError('');
+  };
+
+  const handleLoadDemo = () => {
+    const demo = getDemoSetup();
+    saveSetup(demo);
+    setPlayers(demo.players.map((p) => ({
+      id: p.id,
+      name: p.name,
+      role: p.role,
+      team: p.team || '—',
+      status: 'available',
+      coachId: null,
+    })));
+    setCoaches([]);
+    pushLog('Dati demo caricati (16 giocatori).');
     setActionError('');
   };
 
@@ -446,6 +463,7 @@ export function AstaTorneoLocal() {
       log={log}
       actionError={actionError}
       onInitSetup={handleInitSetup}
+      onLoadDemo={handleLoadDemo}
       onStartAuction={handleStartAuction}
       onStopAuction={handleStopAuction}
       onNextPlayer={handleNextPlayer}

@@ -1620,6 +1620,21 @@ body::before {
   font-size: 0.9rem;
 }
 
+.setup-add-btn,
+.setup-demo-btn {
+  margin-left: auto;
+}
+
+.setup-demo-btn {
+  margin-left: 0.5rem;
+}
+
+.setup-empty {
+  padding: 1rem 0.75rem;
+  text-align: center;
+  list-style: none;
+}
+
 .setup-grid-single {
   grid-template-columns: 1fr;
 }

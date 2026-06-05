@@ -1,7 +1,7 @@
 export const INITIAL_BUDGET = 500;
 export const AUCTION_SECONDS = 15;
 export const CLOSE_SECONDS = 6;
-export const SETUP_STORAGE_KEY = 'asta_setup_v1';
+export const SETUP_STORAGE_KEY = 'asta_setup_v2';
 
 export const COACH_COLORS = [
   '#E8522A',
@@ -83,6 +83,10 @@ export function joinCoachIntoState(coaches, requestedId, name, budget = INITIAL_
 }
 
 export function getDefaultSetup() {
+  return { players: [], coaches: [] };
+}
+
+export function getDemoSetup() {
   return {
     players: Array.from({ length: PLAYER_COUNT }, (_, i) => ({
       id: i + 1,
@@ -90,36 +94,20 @@ export function getDefaultSetup() {
       role: ['G', 'A', 'C'][i % 3],
       team: '—',
     })),
-    coaches: Array.from({ length: COACH_COUNT }, (_, i) => ({
-      id: i + 1,
-      name: i === 0 ? 'Banditore' : '',
-    })),
+    coaches: [],
   };
 }
 
 function normalizeSetup(parsed) {
-  const defaults = getDefaultSetup();
-  const players = parsed?.players?.length ? parsed.players : defaults.players;
-  let coaches = parsed?.coaches?.length ? [...parsed.coaches] : [...defaults.coaches];
-  while (coaches.length < COACH_COUNT) {
-    const nextId = coaches.length + 1;
-    coaches.push({ id: nextId, name: nextId === 1 ? 'Banditore' : '' });
-  }
-  coaches = coaches.slice(0, COACH_COUNT).map((c, i) => ({
-    ...c,
-    id: i + 1,
-    name: i === 0 ? ((c.name || '').trim() || 'Banditore') : (c.name || '').trim(),
-  }));
-  return { players, coaches };
+  const players = Array.isArray(parsed?.players) ? parsed.players : [];
+  return { players, coaches: [] };
 }
 
 export function loadSetup() {
   try {
     const raw = localStorage.getItem(SETUP_STORAGE_KEY);
     if (!raw) return getDefaultSetup();
-    const parsed = JSON.parse(raw);
-    if (!parsed?.players?.length) return getDefaultSetup();
-    return normalizeSetup(parsed);
+    return normalizeSetup(JSON.parse(raw));
   } catch {
     return getDefaultSetup();
   }

@@ -28,6 +28,7 @@ import {
   saveSetup,
   loadSetup,
   mergeSetupIntoPlayers,
+  getDemoSetup,
   BANDITORE_COACH_ID,
   BANDITORE_KEY,
   isBanditoreRole,
@@ -67,7 +68,7 @@ function buildInitialState() {
     isRunning: false,
     coaches: [],
     players: buildInitialPlayers(),
-    log: [{ text: 'Asta pronta. Gli allenatori entrano con nome e stanza.', timestamp: Date.now() }],
+    log: [{ text: 'Asta pronta. Aggiungi giocatori dal Setup o carica la demo.', timestamp: Date.now() }],
   };
 }
 
@@ -89,7 +90,7 @@ function sanitizeGameState(raw) {
       : 'idle',
     isRunning: Boolean(raw.isRunning),
     coaches: Array.isArray(raw.coaches) ? raw.coaches : [],
-    players: Array.isArray(raw.players) ? raw.players : buildInitialPlayers(),
+    players: Array.isArray(raw.players) ? raw.players : [],
     log: Array.isArray(raw.log) ? raw.log : [],
   };
 }
@@ -589,6 +590,18 @@ function AstaTorneoAbly() {
     setActionError('');
   };
 
+  const handleLoadDemo = () => {
+    if (!isAuctioneer) return;
+    const demo = getDemoSetup();
+    saveSetup(demo);
+    const state = gameStateRef.current;
+    publishState(appendLog(
+      { ...state, players: mergeSetupIntoPlayers([], demo.players) },
+      'Dati demo caricati (16 giocatori).',
+    ));
+    setActionError('');
+  };
+
   const handleSetupSave = (draft) => {
     saveSetup(draft);
     const state = gameStateRef.current;
@@ -812,6 +825,7 @@ function AstaTorneoAbly() {
         log={log}
         actionError={actionError}
         onInitSetup={handleInitSetup}
+        onLoadDemo={handleLoadDemo}
         onStartAuction={handleStartAuction}
         onStopAuction={handleStopAuction}
         onNextPlayer={handleNextPlayer}

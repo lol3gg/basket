@@ -7,6 +7,7 @@ import {
   saveSetup,
   splitPlayerName,
   createSetupPlayer,
+  getDemoSetup,
   getAppBaseUrl,
   buildShareInviteMessage,
   isMobileDevice,
@@ -786,10 +787,14 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '' }) {
   };
 
   const removePlayer = (id) => {
-    setDraft((d) => {
-      if (d.players.length <= 1) return d;
-      return { ...d, players: d.players.filter((p) => p.id !== id) };
-    });
+    setDraft((d) => ({ ...d, players: d.players.filter((p) => p.id !== id) }));
+  };
+
+  const loadDemo = () => {
+    const demo = getDemoSetup();
+    setDraft(demo);
+    saveSetup(demo);
+    onSave(demo);
   };
 
   const handleSave = () => {
@@ -811,8 +816,17 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '' }) {
             <button type="button" className="btn-secondary setup-add-btn" onClick={() => setShowAddPlayerModal(true)}>
               + Aggiungi giocatore
             </button>
+            <button type="button" className="btn-secondary setup-demo-btn" onClick={loadDemo}>
+              Carica demo
+            </button>
           </div>
+          <p className="setup-note muted">
+            Gli allenatori si uniscono da soli all&apos;ingresso. Aggiungi i giocatori qui o usa Carica demo per provare.
+          </p>
           <ul className="setup-list players">
+            {draft.players.length === 0 && (
+              <li className="setup-empty muted">Nessun giocatore — aggiungine uno o carica la demo.</li>
+            )}
             {draft.players.map((p) => (
               <li key={p.id}>
                 <span className="player-id">#{p.id}</span>
@@ -831,7 +845,6 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '' }) {
                   type="button"
                   className="btn-setup-remove"
                   onClick={() => removePlayer(p.id)}
-                  disabled={draft.players.length <= 1}
                   title="Rimuovi giocatore"
                   aria-label={`Rimuovi ${p.name}`}
                 >
@@ -876,6 +889,7 @@ export function AuctionUI({
   actionError,
   onBid,
   onInitSetup,
+  onLoadDemo,
   onStartAuction,
   onStopAuction,
   onNextPlayer,
@@ -960,6 +974,7 @@ export function AuctionUI({
           <button type="button" className="btn-secondary" onClick={onStopAuction} disabled={!isLive}>Pausa</button>
           <button type="button" className="btn-secondary" onClick={onNextPlayer}>Salta</button>
           <button type="button" className="btn-secondary" onClick={onManualAssign}>Assegna</button>
+          <button type="button" className="btn-secondary" onClick={onLoadDemo}>Demo</button>
           <button type="button" className="btn-secondary" onClick={onInitSetup}>Reset</button>
         </>
       )}

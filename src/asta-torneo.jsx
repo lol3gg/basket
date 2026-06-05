@@ -34,7 +34,6 @@ import {
   isMobileDevice,
   joinCoachIntoState,
   addSetupPlayer,
-  setupCoachesToGameCoaches,
   parseDeepLinkFromUrl,
   clearDeepLinkFromUrl,
   createJoinRequestId,
@@ -60,11 +59,18 @@ function parseSavedCoachId(saved) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function seedCoachesFromSetup(existingCoaches = [], banditoreOnline = false) {
-  const setup = loadSetup();
-  return setupCoachesToGameCoaches(setup.coaches, existingCoaches).map((c) => (
-    banditoreOnline && c.id === BANDITORE_COACH_ID ? { ...c, online: true } : c
-  ));
+function buildInitialState() {
+  return {
+    currentPlayer: null,
+    currentBid: 0,
+    currentBidder: null,
+    timer: AUCTION_SECONDS,
+    phase: 'idle',
+    isRunning: false,
+    coaches: [],
+    players: buildInitialPlayers(),
+    log: [{ text: 'Asta pronta. Gli allenatori entrano dal link personale.', timestamp: Date.now() }],
+  };
 }
 
 const COACH_STORAGE_KEY = 'asta_coach_id';
@@ -74,20 +80,6 @@ const INITIAL_BUDGET = 500;
 const BID_INCREMENT = 1;
 
 const INITIAL_DEEP_LINK = parseDeepLinkFromUrl();
-
-function buildInitialState(banditoreOnline = false) {
-  return {
-    currentPlayer: null,
-    currentBid: 0,
-    currentBidder: null,
-    timer: AUCTION_SECONDS,
-    phase: 'idle',
-    isRunning: false,
-    coaches: seedCoachesFromSetup([], banditoreOnline),
-    players: buildInitialPlayers(),
-    log: [{ text: 'Asta pronta. Il banditore può avviare.', timestamp: Date.now() }],
-  };
-}
 
 function sanitizeGameState(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -277,9 +269,8 @@ function AstaTorneoAbly() {
 
       const state = gameStateRef.current;
       const trimmedName = name.trim();
-      const seededCoaches = seedCoachesFromSetup(state.coaches);
       const result = joinCoachIntoState(
-        seededCoaches,
+        state.coaches,
         requestedId,
         trimmedName,
         INITIAL_BUDGET,
@@ -316,7 +307,7 @@ function AstaTorneoAbly() {
       if (lastState?.data) {
         applyState(lastState.data);
       } else if (isAuctioneerRef.current) {
-        publishState(buildInitialState(true));
+        publishState(buildInitialState());
       }
     }).catch(console.error);
 
@@ -604,7 +595,7 @@ function AstaTorneoAbly() {
 
   const handleInitSetup = () => {
     if (!isAuctioneer) return;
-    publishState(buildInitialState(true));
+    publishState(buildInitialState());
     setActionError('');
   };
 
@@ -614,7 +605,12 @@ function AstaTorneoAbly() {
     const next = {
       ...state,
       players: mergeSetupIntoPlayers(state.players, draft.players),
-      coaches: setupCoachesToGameCoaches(draft.coaches, state.coaches),
+      coaches: state.coaches.map((c) => {
+        const sc = draft.coaches.find((x) => x.id === c.id);
+        if (!sc) return c;
+        const updatedName = (sc.name || '').trim();
+        return updatedName ? { ...c, name: updatedName } : c;
+      }),
     };
     publishState(appendLog(next, 'Configurazione aggiornata.'));
     setShowSetup(false);

@@ -27,7 +27,7 @@ export function isBanditoreRole(coachId) {
 }
 
 export function getJoinedCoaches(coaches) {
-  return (coaches || []).filter((c) => (c.name || '').trim());
+  return (coaches || []).filter((c) => c.online && c.id !== BANDITORE_COACH_ID);
 }
 
 export function getCoachDisplayName(coach) {
@@ -43,6 +43,9 @@ export function joinCoachIntoState(coaches, requestedId, name, budget = INITIAL_
   const reqId = Number.isFinite(Number(requestedId)) ? Number(requestedId) : null;
 
   if (reqId) {
+    if (reqId === BANDITORE_COACH_ID) {
+      return { coaches: list, coachId: null, error: 'Slot riservato al banditore' };
+    }
     const byRequestedId = list.find((c) => c.id === reqId);
     if (byRequestedId) {
       if (byRequestedId.online) {
@@ -52,6 +55,12 @@ export function joinCoachIntoState(coaches, requestedId, name, budget = INITIAL_
         coaches: list.map((c) => (
           c.id === reqId ? { ...c, name: trimmedName || c.name, online: true } : c
         )),
+        coachId: reqId,
+      };
+    }
+    if (reqId >= 1 && reqId <= COACH_COUNT) {
+      return {
+        coaches: [...list, { id: reqId, name: trimmedName, budget, players: [], online: true }],
         coachId: reqId,
       };
     }
@@ -83,7 +92,7 @@ export function getDefaultSetup() {
     })),
     coaches: Array.from({ length: COACH_COUNT }, (_, i) => ({
       id: i + 1,
-      name: i === 0 ? 'Banditore' : `Allenatore ${i + 1}`,
+      name: i === 0 ? 'Banditore' : '',
     })),
   };
 }
@@ -94,12 +103,12 @@ function normalizeSetup(parsed) {
   let coaches = parsed?.coaches?.length ? [...parsed.coaches] : [...defaults.coaches];
   while (coaches.length < COACH_COUNT) {
     const nextId = coaches.length + 1;
-    coaches.push({ id: nextId, name: nextId === 1 ? 'Banditore' : `Allenatore ${nextId}` });
+    coaches.push({ id: nextId, name: nextId === 1 ? 'Banditore' : '' });
   }
   coaches = coaches.slice(0, COACH_COUNT).map((c, i) => ({
     ...c,
     id: i + 1,
-    name: (c.name || '').trim() || (i === 0 ? 'Banditore' : `Allenatore ${i + 1}`),
+    name: i === 0 ? ((c.name || '').trim() || 'Banditore') : (c.name || '').trim(),
   }));
   return { players, coaches };
 }
@@ -184,10 +193,10 @@ export function parseDeepLinkFromUrl() {
   const coachRaw = params.get('coach');
   if (!stanza || !coachRaw) return null;
   const coachId = Number(coachRaw);
-  if (!Number.isFinite(coachId) || coachId <= 0) return null;
+  if (!Number.isFinite(coachId) || coachId <= BANDITORE_COACH_ID || coachId > COACH_COUNT) return null;
   const setup = loadSetup();
-  const name = getSetupCoachName(setup, coachId);
-  if (!name) return null;
+  const setupName = getSetupCoachName(setup, coachId);
+  const name = setupName || getCoachInviteLabel({ id: coachId, name: '' });
   return { stanza, coachId, name };
 }
 

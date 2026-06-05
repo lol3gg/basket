@@ -10,7 +10,6 @@ import {
   isBanditoreRole,
   joinCoachIntoState,
   addSetupPlayer,
-  setupCoachesToGameCoaches,
   parseDeepLinkFromUrl,
   clearDeepLinkFromUrl,
 } from './asta-setup.js';
@@ -50,14 +49,16 @@ export function AstaTorneoLocal() {
   const [isRunning, setIsRunning] = useState(false);
   const [phase, setPhase] = useState('idle');
   const [coaches, setCoaches] = useState(() => {
-    const setup = loadSetup();
-    let list = setupCoachesToGameCoaches(setup.coaches);
     if (INITIAL_DEEP_LINK) {
-      list = list.map((c) => (
-        c.id === INITIAL_DEEP_LINK.coachId ? { ...c, online: true } : c
-      ));
+      return [{
+        id: INITIAL_DEEP_LINK.coachId,
+        name: INITIAL_DEEP_LINK.name,
+        budget: 500,
+        players: [],
+        online: true,
+      }];
     }
-    return list;
+    return [];
   });
   const [players, setPlayers] = useState(() => buildInitialPlayers());
   const [log, setLog] = useState([{ text: 'Asta pronta (modalità locale).', timestamp: Date.now() }]);
@@ -197,8 +198,7 @@ export function AstaTorneoLocal() {
   }
 
   const reloadFromSetup = () => {
-    const setup = loadSetup();
-    setCoaches(setupCoachesToGameCoaches(setup.coaches));
+    setCoaches([]);
     setPlayers(buildInitialPlayers());
   };
 
@@ -217,7 +217,12 @@ export function AstaTorneoLocal() {
   const handleSetupSave = (draft) => {
     saveSetup(draft);
     setPlayers((prev) => mergeSetupIntoPlayers(prev, draft.players));
-    setCoaches((prev) => setupCoachesToGameCoaches(draft.coaches, prev));
+    setCoaches((prev) => prev.map((c) => {
+      const sc = draft.coaches.find((x) => x.id === c.id);
+      if (!sc) return c;
+      const updatedName = (sc.name || '').trim();
+      return updatedName ? { ...c, name: updatedName } : c;
+    }));
     setShowSetup(false);
     pushLog('Configurazione aggiornata.');
   };
@@ -360,7 +365,8 @@ export function AstaTorneoLocal() {
       coachRegisteredRef.current = false;
       return;
     }
-    if (coaches.some((c) => c.id === coachId)) {
+    const myCoach = coaches.find((c) => c.id === coachId);
+    if (myCoach?.online) {
       coachRegisteredRef.current = true;
       return;
     }

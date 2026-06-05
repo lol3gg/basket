@@ -1180,6 +1180,7 @@ export function AuctionUI({
     currentBid,
     currentBidder,
     coaches,
+    announceVoice: isAuctioneer && !isMobileDevice(),
   });
 
   const bidAmounts = [

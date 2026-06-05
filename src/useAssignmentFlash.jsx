@@ -7,6 +7,7 @@ export function useAssignmentFlash({
   currentBid,
   currentBidder,
   coaches,
+  announceVoice = false,
 }) {
   const [flash, setFlash] = useState(null);
   const seenRef = useRef(null);
@@ -27,7 +28,7 @@ export function useAssignmentFlash({
 
     setFlash({ playerName, coachName, bid: currentBid, exiting: false });
 
-    if (isMobileDevice() && 'speechSynthesis' in window) {
+    if (announceVoice && !isMobileDevice() && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const msg = new SpeechSynthesisUtterance(
         `${playerName} va a ${coachName} per ${currentBid} crediti`,
@@ -46,7 +47,7 @@ export function useAssignmentFlash({
       clearTimeout(exitAt);
       clearTimeout(hideAt);
     };
-  }, [phase, currentPlayer, currentBid, currentBidder, coaches]);
+  }, [phase, currentPlayer, currentBid, currentBidder, coaches, announceVoice]);
 
   return flash;
 }

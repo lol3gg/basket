@@ -10,6 +10,8 @@ import {
   createSetupCoach,
   buildCoachInviteLink,
   buildShareAllMessage,
+  getInviteCoaches,
+  getCoachInviteLabel,
   isMobileDevice,
   isBanditoreRole,
   getCoachDisplayName,
@@ -720,13 +722,15 @@ function AddPlayerModal({ onConfirm, onClose }) {
 }
 
 function ShareLinksSection({ stanzaCode, coaches }) {
+  const [showLinks, setShowLinks] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
   const [shareStatus, setShareStatus] = useState('');
 
-  const namedCoaches = (coaches || []).filter((c) => (c.name || '').trim());
+  const inviteCoaches = getInviteCoaches(coaches);
+  const normalizedStanza = stanzaCode?.trim().toUpperCase() || '';
 
   const copyLink = async (coach) => {
-    const link = buildCoachInviteLink(stanzaCode, coach.id);
+    const link = buildCoachInviteLink(normalizedStanza, coach.id);
     try {
       await navigator.clipboard.writeText(link);
       setCopiedId(coach.id);
@@ -738,10 +742,11 @@ function ShareLinksSection({ stanzaCode, coaches }) {
   };
 
   const shareAll = async () => {
-    const message = buildShareAllMessage(stanzaCode, namedCoaches);
+    if (!normalizedStanza) return;
+    const message = buildShareAllMessage(normalizedStanza, coaches);
     if (navigator.share) {
       try {
-        await navigator.share({ text: message });
+        await navigator.share({ text: message, title: 'Link asta torneo' });
         return;
       } catch (err) {
         if (err?.name === 'AbortError') return;
@@ -749,65 +754,71 @@ function ShareLinksSection({ stanzaCode, coaches }) {
     }
     try {
       await navigator.clipboard.writeText(message);
-      setShareStatus('Messaggio copiato negli appunti');
-      setTimeout(() => setShareStatus(''), 2500);
+      setShareStatus('Messaggio copiato — incollalo su WhatsApp');
+      setTimeout(() => setShareStatus(''), 3000);
     } catch {
       setShareStatus('Condivisione non riuscita');
       setTimeout(() => setShareStatus(''), 2500);
     }
   };
 
-  if (!stanzaCode?.trim()) {
-    return (
-      <section className="dash-panel share-links-panel">
-        <h2 className="panel-title">Condividi link</h2>
-        <p className="setup-note muted">
-          Apri prima la stanza dalla dashboard per generare i link personali degli allenatori.
-        </p>
-      </section>
-    );
-  }
+  const handleShowLinks = () => {
+    if (!normalizedStanza) return;
+    setShowLinks(true);
+  };
 
   return (
     <section className="dash-panel share-links-panel">
       <div className="panel-head">
-        <h2 className="panel-title">Condividi link</h2>
-        <span className="panel-count">Stanza {stanzaCode}</span>
+        <h2 className="panel-title">Link WhatsApp allenatori</h2>
+        {normalizedStanza && <span className="panel-count">Stanza {normalizedStanza}</span>}
       </div>
-      <p className="setup-note muted">
-        Ogni allenatore ha un link personale. Inviali su WhatsApp o Telegram.
-      </p>
-      {namedCoaches.length === 0 ? (
-        <p className="muted">Aggiungi almeno un allenatore con nome per generare i link.</p>
+
+      {!normalizedStanza ? (
+        <p className="setup-note muted">
+          Entra con codice stanza e password dalla dashboard per generare i link personali.
+        </p>
       ) : (
-        <ul className="share-links-list">
-          {namedCoaches.map((c) => {
-            const link = buildCoachInviteLink(stanzaCode, c.id);
-            return (
-              <li key={c.id} className="share-link-item">
-                <div className="share-link-head">
-                  <span className="coach-num sm" style={{ '--coach-color': getCoachColor(c.id) }}>{c.id}</span>
-                  <span className="share-coach-name">{c.name.trim()}</span>
-                </div>
-                <div className="share-link-row">
-                  <code className="share-link-url">{link}</code>
-                  <button
-                    type="button"
-                    className="btn-secondary share-copy-btn"
-                    onClick={() => copyLink(c)}
-                  >
-                    {copiedId === c.id ? 'Copiato ✓' : 'Copia'}
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {namedCoaches.length > 0 && (
-        <button type="button" className="btn-cta share-all-btn" onClick={shareAll}>
-          Condividi tutti
-        </button>
+        <>
+          <p className="setup-note muted">
+            Ogni allenatore (2–8) ha un link personale. Invia su WhatsApp o Telegram.
+          </p>
+          <div className="share-links-actions">
+            <button type="button" className="btn-cta" onClick={handleShowLinks}>
+              Condividi links
+            </button>
+            <button type="button" className="btn-secondary share-all-btn" onClick={shareAll}>
+              Condividi tutti
+            </button>
+          </div>
+
+          {showLinks && (
+            <ul className="share-links-list">
+              {inviteCoaches.map((c) => {
+                const link = buildCoachInviteLink(normalizedStanza, c.id);
+                const label = getCoachInviteLabel(c);
+                return (
+                  <li key={c.id} className="share-link-item">
+                    <div className="share-link-head">
+                      <span className="coach-num sm" style={{ '--coach-color': getCoachColor(c.id) }}>{c.id}</span>
+                      <span className="share-coach-name">{label}</span>
+                    </div>
+                    <div className="share-link-row">
+                      <code className="share-link-url">{link}</code>
+                      <button
+                        type="button"
+                        className="btn-secondary share-copy-btn"
+                        onClick={() => copyLink(c)}
+                      >
+                        {copiedId === c.id ? 'Copiato ✓' : 'Copia'}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </>
       )}
       {shareStatus && <p className="share-status muted">{shareStatus}</p>}
     </section>
@@ -902,7 +913,7 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '' }) {
             <h2 className="panel-title">Allenatori ({COACH_COUNT})</h2>
             <span className="panel-count">#1 = Banditore</span>
           </div>
-          <p className="setup-note muted">Rinomina gli 8 allenatori. All&apos;ingresso ognuno sceglie il proprio slot.</p>
+          <p className="setup-note muted">Rinomina gli 8 allenatori. I link personali (coach 2–8) si generano sotto.</p>
           <ul className="setup-list coaches">
             {draft.coaches.slice(0, COACH_COUNT).map((c) => (
               <li key={c.id}>

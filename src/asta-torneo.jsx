@@ -69,6 +69,7 @@ function seedCoachesFromSetup(existingCoaches = [], banditoreOnline = false) {
 
 const COACH_STORAGE_KEY = 'asta_coach_id';
 const STANZA_STORAGE_KEY = 'asta_stanza_code';
+const BANDITORE_SESSION_KEY = 'asta_banditore_verified';
 const INITIAL_BUDGET = 500;
 const BID_INCREMENT = 1;
 
@@ -130,34 +131,41 @@ export default function AstaTorneo() {
   return <AstaTorneoAbly />;
 }
 
+function isCoachDeepLink(link = INITIAL_DEEP_LINK) {
+  return Boolean(link && link.coachId !== BANDITORE_COACH_ID);
+}
+
+function isBanditoreSessionVerified() {
+  if (typeof sessionStorage === 'undefined') return false;
+  return sessionStorage.getItem(BANDITORE_SESSION_KEY) === '1';
+}
+
 function shouldShowRoomEntry() {
-  if (INITIAL_DEEP_LINK) {
-    if (!isMobileDevice()) return true;
-    if (INITIAL_DEEP_LINK.coachId === BANDITORE_COACH_ID) return true;
-    return false;
+  if (isCoachDeepLink()) return false;
+  if (INITIAL_DEEP_LINK?.coachId === BANDITORE_COACH_ID) return true;
+  if (!isMobileDevice()) {
+    const savedStanza = localStorage.getItem(STANZA_STORAGE_KEY);
+    return !isBanditoreSessionVerified() || !savedStanza;
   }
-  const savedCoach = localStorage.getItem(COACH_STORAGE_KEY);
-  const savedStanza = localStorage.getItem(STANZA_STORAGE_KEY);
-  if (!savedStanza || !savedCoach) return true;
-  const parsedCoach = parseSavedCoachId(savedCoach);
-  if (!isMobileDevice() && !isBanditoreRole(parsedCoach)) return true;
-  if (isMobileDevice() && isBanditoreRole(parsedCoach)) return true;
-  return false;
+  return !localStorage.getItem(COACH_STORAGE_KEY);
 }
 
 function AstaTorneoAbly() {
   const [coachId, setCoachId] = useState(() => {
+    if (isCoachDeepLink()) return null;
+    if (!isMobileDevice()) {
+      if (!isBanditoreSessionVerified()) return null;
+      return parseSavedCoachId(localStorage.getItem(COACH_STORAGE_KEY));
+    }
     if (INITIAL_DEEP_LINK) return null;
-    const saved = localStorage.getItem(COACH_STORAGE_KEY);
-    return parseSavedCoachId(saved);
+    return parseSavedCoachId(localStorage.getItem(COACH_STORAGE_KEY));
   });
   const [stanzaCode, setStanzaCode] = useState(() => (
     INITIAL_DEEP_LINK?.stanza ?? localStorage.getItem(STANZA_STORAGE_KEY) ?? ''
   ));
   const [showRoomEntry, setShowRoomEntry] = useState(shouldShowRoomEntry);
   const [pendingJoin, setPendingJoin] = useState(() => {
-    if (!INITIAL_DEEP_LINK || INITIAL_DEEP_LINK.coachId === BANDITORE_COACH_ID) return null;
-    if (!isMobileDevice()) return null;
+    if (!isCoachDeepLink()) return null;
     return {
       requestId: createJoinRequestId(),
       name: INITIAL_DEEP_LINK.name,
@@ -195,7 +203,7 @@ function AstaTorneoAbly() {
 
   useEffect(() => {
     if (!INITIAL_DEEP_LINK) return;
-    if (isMobileDevice() && INITIAL_DEEP_LINK.coachId !== BANDITORE_COACH_ID) {
+    if (isCoachDeepLink()) {
       localStorage.setItem(STANZA_STORAGE_KEY, INITIAL_DEEP_LINK.stanza);
       localStorage.removeItem(COACH_STORAGE_KEY);
     }
@@ -540,6 +548,7 @@ function AstaTorneoAbly() {
     const normalized = code.trim().toUpperCase();
     if (!normalized) return;
 
+    sessionStorage.setItem(BANDITORE_SESSION_KEY, '1');
     localStorage.setItem(STANZA_STORAGE_KEY, normalized);
     localStorage.setItem(COACH_STORAGE_KEY, String(BANDITORE_COACH_ID));
     setStanzaCode(normalized);
@@ -569,6 +578,7 @@ function AstaTorneoAbly() {
 
   const leaveRoom = () => {
     if (isAuctioneer) {
+      sessionStorage.removeItem(BANDITORE_SESSION_KEY);
       localStorage.removeItem(COACH_STORAGE_KEY);
       localStorage.removeItem(STANZA_STORAGE_KEY);
       setCoachId(null);
@@ -738,9 +748,11 @@ function AstaTorneoAbly() {
   };
 
   if (showRoomEntry) {
-    if (isMobileDevice()) {
-      const variant = INITIAL_DEEP_LINK?.coachId === BANDITORE_COACH_ID ? 'banditore' : 'invite';
-      return <MobileInviteGate variant={variant} />;
+    if (isMobileDevice() && !INITIAL_DEEP_LINK) {
+      return <MobileInviteGate variant="invite" />;
+    }
+    if (isMobileDevice() && INITIAL_DEEP_LINK?.coachId === BANDITORE_COACH_ID) {
+      return <MobileInviteGate variant="banditore" />;
     }
     return (
       <BanditoreRoomEntry

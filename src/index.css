@@ -1596,6 +1596,20 @@ body::before {
   margin-bottom: 1rem;
 }
 
+.share-links-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
+}
+
+.share-links-actions .btn-cta,
+.share-links-actions .share-all-btn {
+  flex: 1;
+  min-width: 10rem;
+  margin-top: 0;
+}
+
 .share-links-list {
   list-style: none;
   margin: 0;
@@ -1651,8 +1665,7 @@ body::before {
 }
 
 .share-all-btn {
-  width: 100%;
-  margin-top: 0.85rem;
+  width: auto;
 }
 
 .share-status {

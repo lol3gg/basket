@@ -161,11 +161,20 @@ export function buildCoachInviteLink(stanzaCode, coachId) {
   return `${base}?${params.toString()}`;
 }
 
+export function getInviteCoaches(coaches) {
+  return (coaches || []).filter((c) => c.id !== BANDITORE_COACH_ID);
+}
+
+export function getCoachInviteLabel(coach) {
+  if (!coach) return 'Allenatore';
+  return (coach.name || '').trim() || `Allenatore ${coach.id}`;
+}
+
 export function buildShareAllMessage(stanzaCode, coaches) {
-  const lines = (coaches || [])
-    .filter((c) => (c.name || '').trim())
-    .map((c) => `${c.name.trim()}: ${buildCoachInviteLink(stanzaCode, c.id)}`);
-  return `🏀 ASTA TORNEO - entra dal tuo link:\n\n${lines.join('\n')}`;
+  const lines = getInviteCoaches(coaches).map((c) => (
+    `${getCoachInviteLabel(c)}: ${buildCoachInviteLink(stanzaCode, c.id)}`
+  ));
+  return `🏀 ASTA TORNEO - entra dal tuo link:\n${lines.join('\n')}`;
 }
 
 export function parseDeepLinkFromUrl() {

@@ -49,7 +49,7 @@ export function joinCoachIntoState(coaches, requestedId, name, budget = INITIAL_
     const byRequestedId = list.find((c) => c.id === reqId);
     if (byRequestedId) {
       if (byRequestedId.online) {
-        return { coaches: list, coachId: null, error: 'Questo allenatore è già connesso' };
+        return { coaches: list, coachId: null, error: 'Questo nome è già connesso' };
       }
       return {
         coaches: list.map((c) => (
@@ -69,7 +69,7 @@ export function joinCoachIntoState(coaches, requestedId, name, budget = INITIAL_
   const byName = list.find((c) => c.name.trim() === trimmedName);
   if (byName) {
     if (byName.online) {
-      return { coaches: list, coachId: null, error: 'Questo allenatore è già connesso' };
+      return { coaches: list, coachId: null, error: 'Questo nome è già connesso' };
     }
     return {
       coaches: list.map((c) => (c.id === byName.id ? { ...c, online: true } : c)),
@@ -158,59 +158,13 @@ export function getSetupCoachName(setup, coachId) {
 
 export function getAppBaseUrl() {
   if (typeof window === 'undefined') return '';
-  return `${window.location.origin}${window.location.pathname}`;
+  return `${window.location.origin}${window.location.pathname}`.replace(/\/$/, '') || window.location.origin;
 }
 
-export function buildCoachInviteLink(stanzaCode, coachId) {
-  const base = getAppBaseUrl();
-  const params = new URLSearchParams({
-    stanza: stanzaCode.trim().toUpperCase(),
-    coach: String(coachId),
-  });
-  return `${base}?${params.toString()}`;
-}
-
-export function getInviteCoaches(coaches) {
-  return (coaches || []).filter((c) => c.id !== BANDITORE_COACH_ID);
-}
-
-export function getCoachInviteLabel(coach) {
-  if (!coach) return 'Allenatore';
-  return (coach.name || '').trim() || `Allenatore ${coach.id}`;
-}
-
-export function buildShareAllMessage(stanzaCode, coaches) {
-  const lines = getInviteCoaches(coaches).map((c) => (
-    `${getCoachInviteLabel(c)}: ${buildCoachInviteLink(stanzaCode, c.id)}`
-  ));
-  return `🏀 ASTA TORNEO - entra dal tuo link:\n${lines.join('\n')}`;
-}
-
-export function parseDeepLinkFromUrl() {
-  if (typeof window === 'undefined') return null;
-  const params = new URLSearchParams(window.location.search);
-  const stanza = params.get('stanza')?.trim().toUpperCase();
-  const coachRaw = params.get('coach');
-  if (!stanza || !coachRaw) return null;
-  const coachId = Number(coachRaw);
-  if (!Number.isFinite(coachId) || coachId <= BANDITORE_COACH_ID || coachId > COACH_COUNT) return null;
-  const setup = loadSetup();
-  const setupName = getSetupCoachName(setup, coachId);
-  const name = setupName || getCoachInviteLabel({ id: coachId, name: '' });
-  return { stanza, coachId, name };
-}
-
-export function clearDeepLinkFromUrl() {
-  if (typeof window === 'undefined') return;
-  const url = new URL(window.location.href);
-  url.searchParams.delete('stanza');
-  url.searchParams.delete('coach');
-  const search = url.searchParams.toString();
-  window.history.replaceState({}, '', url.pathname + (search ? `?${search}` : '') + url.hash);
-}
-
-export function getSetupCoaches() {
-  return loadSetup().coaches.slice(0, COACH_COUNT);
+export function buildShareInviteMessage(stanzaCode) {
+  const url = getAppBaseUrl();
+  const stanza = stanzaCode.trim().toUpperCase();
+  return `🏀 ASTA TORNEO\n\nApri: ${url}\nNome stanza: ${stanza}\n\nInserisci il tuo nome e entra come allenatore.`;
 }
 
 export function setupPlayerToGamePlayer(p) {

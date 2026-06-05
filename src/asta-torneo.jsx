@@ -31,18 +31,14 @@ import {
   BANDITORE_COACH_ID,
   BANDITORE_KEY,
   isBanditoreRole,
-  isMobileDevice,
   joinCoachIntoState,
   addSetupPlayer,
-  parseDeepLinkFromUrl,
-  clearDeepLinkFromUrl,
   createJoinRequestId,
 } from './asta-setup.js';
 import { buildRestartPlayerState, disconnectCoachFromState } from './asta-logic.js';
 import {
   AuctionUI,
-  BanditoreRoomEntry,
-  MobileInviteGate,
+  EntryScreen,
   CoachMobileUI,
   CoachJoinPending,
   SetupScreen,
@@ -69,7 +65,7 @@ function buildInitialState() {
     isRunning: false,
     coaches: [],
     players: buildInitialPlayers(),
-    log: [{ text: 'Asta pronta. Gli allenatori entrano dal link personale.', timestamp: Date.now() }],
+    log: [{ text: 'Asta pronta. Gli allenatori entrano con nome e stanza.', timestamp: Date.now() }],
   };
 }
 
@@ -78,8 +74,6 @@ const STANZA_STORAGE_KEY = 'asta_stanza_code';
 const BANDITORE_SESSION_KEY = 'asta_banditore_verified';
 const INITIAL_BUDGET = 500;
 const BID_INCREMENT = 1;
-
-const INITIAL_DEEP_LINK = parseDeepLinkFromUrl();
 
 function sanitizeGameState(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -123,47 +117,31 @@ export default function AstaTorneo() {
   return <AstaTorneoAbly />;
 }
 
-function isCoachDeepLink(link = INITIAL_DEEP_LINK) {
-  return Boolean(link && link.coachId !== BANDITORE_COACH_ID);
-}
-
 function isBanditoreSessionVerified() {
   if (typeof sessionStorage === 'undefined') return false;
   return sessionStorage.getItem(BANDITORE_SESSION_KEY) === '1';
 }
 
 function shouldShowRoomEntry() {
-  if (isCoachDeepLink()) return false;
-  if (INITIAL_DEEP_LINK?.coachId === BANDITORE_COACH_ID) return true;
-  if (!isMobileDevice()) {
-    const savedStanza = localStorage.getItem(STANZA_STORAGE_KEY);
-    return !isBanditoreSessionVerified() || !savedStanza;
+  const savedCoach = localStorage.getItem(COACH_STORAGE_KEY);
+  const savedStanza = localStorage.getItem(STANZA_STORAGE_KEY);
+  if (!savedStanza || !savedCoach) return true;
+  if (isBanditoreRole(parseSavedCoachId(savedCoach))) {
+    return !isBanditoreSessionVerified();
   }
-  return !localStorage.getItem(COACH_STORAGE_KEY);
+  return false;
 }
 
 function AstaTorneoAbly() {
   const [coachId, setCoachId] = useState(() => {
-    if (isCoachDeepLink()) return null;
-    if (!isMobileDevice()) {
-      if (!isBanditoreSessionVerified()) return null;
-      return parseSavedCoachId(localStorage.getItem(COACH_STORAGE_KEY));
+    if (!isBanditoreSessionVerified() && isBanditoreRole(parseSavedCoachId(localStorage.getItem(COACH_STORAGE_KEY)))) {
+      return null;
     }
-    if (INITIAL_DEEP_LINK) return null;
     return parseSavedCoachId(localStorage.getItem(COACH_STORAGE_KEY));
   });
-  const [stanzaCode, setStanzaCode] = useState(() => (
-    INITIAL_DEEP_LINK?.stanza ?? localStorage.getItem(STANZA_STORAGE_KEY) ?? ''
-  ));
+  const [stanzaCode, setStanzaCode] = useState(() => localStorage.getItem(STANZA_STORAGE_KEY) ?? '');
   const [showRoomEntry, setShowRoomEntry] = useState(shouldShowRoomEntry);
-  const [pendingJoin, setPendingJoin] = useState(() => {
-    if (!isCoachDeepLink()) return null;
-    return {
-      requestId: createJoinRequestId(),
-      name: INITIAL_DEEP_LINK.name,
-      coachId: INITIAL_DEEP_LINK.coachId,
-    };
-  });
+  const [pendingJoin, setPendingJoin] = useState(null);
   const [joinError, setJoinError] = useState('');
   const [showSetup, setShowSetup] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -192,15 +170,6 @@ function AstaTorneoAbly() {
   } = gameState;
 
   gameStateRef.current = gameState;
-
-  useEffect(() => {
-    if (!INITIAL_DEEP_LINK) return;
-    if (isCoachDeepLink()) {
-      localStorage.setItem(STANZA_STORAGE_KEY, INITIAL_DEEP_LINK.stanza);
-      localStorage.removeItem(COACH_STORAGE_KEY);
-    }
-    clearDeepLinkFromUrl();
-  }, []);
 
   const applyState = useCallback((data) => {
     const sanitized = sanitizeGameState(data);
@@ -271,7 +240,7 @@ function AstaTorneoAbly() {
       const trimmedName = name.trim();
       const result = joinCoachIntoState(
         state.coaches,
-        requestedId,
+        null,
         trimmedName,
         INITIAL_BUDGET,
       );
@@ -383,13 +352,12 @@ function AstaTorneoAbly() {
       channel.publish('join', {
         requestId: currentPending.requestId,
         name: currentPending.name,
-        coachId: currentPending.coachId,
       }).catch((err) => {
         console.error('join publish error:', err);
       });
 
       if (joinAttemptsRef.current >= JOIN_MAX_ATTEMPTS) {
-        setJoinError('Banditore non raggiungibile. Assicurati che il coach 1 (Banditore) abbia aperto la stanza.');
+        setJoinError('Banditore non raggiungibile. Assicurati che il banditore abbia aperto la stanza.');
       }
     };
 
@@ -535,20 +503,33 @@ function AstaTorneoAbly() {
     publishState(next);
   };
 
-  const joinAsBanditore = (code) => {
-    const normalized = code.trim().toUpperCase();
-    if (!normalized) return;
+  const joinRoom = ({ stanza, name, role }) => {
+    const normalized = stanza.trim().toUpperCase();
+    const trimmedName = name.trim();
+    if (!normalized || !trimmedName) return;
 
-    sessionStorage.setItem(BANDITORE_SESSION_KEY, '1');
     localStorage.setItem(STANZA_STORAGE_KEY, normalized);
-    localStorage.setItem(COACH_STORAGE_KEY, String(BANDITORE_COACH_ID));
     setStanzaCode(normalized);
-    setCoachId(BANDITORE_COACH_ID);
-    setPendingJoin(null);
     setShowRoomEntry(false);
     setBidError('');
     setActionError('');
     setJoinError('');
+
+    if (role === 'banditore') {
+      sessionStorage.setItem(BANDITORE_SESSION_KEY, '1');
+      localStorage.setItem(COACH_STORAGE_KEY, String(BANDITORE_COACH_ID));
+      setCoachId(BANDITORE_COACH_ID);
+      setPendingJoin(null);
+      return;
+    }
+
+    localStorage.removeItem(COACH_STORAGE_KEY);
+    setCoachId(null);
+    joinAttemptsRef.current = 0;
+    setPendingJoin({
+      requestId: createJoinRequestId(),
+      name: trimmedName,
+    });
   };
 
   const cancelPendingJoin = () => {
@@ -605,12 +586,6 @@ function AstaTorneoAbly() {
     const next = {
       ...state,
       players: mergeSetupIntoPlayers(state.players, draft.players),
-      coaches: state.coaches.map((c) => {
-        const sc = draft.coaches.find((x) => x.id === c.id);
-        if (!sc) return c;
-        const updatedName = (sc.name || '').trim();
-        return updatedName ? { ...c, name: updatedName } : c;
-      }),
     };
     publishState(appendLog(next, 'Configurazione aggiornata.'));
     setShowSetup(false);
@@ -744,16 +719,10 @@ function AstaTorneoAbly() {
   };
 
   if (showRoomEntry) {
-    if (isMobileDevice() && !INITIAL_DEEP_LINK) {
-      return <MobileInviteGate variant="invite" />;
-    }
-    if (isMobileDevice() && INITIAL_DEEP_LINK?.coachId === BANDITORE_COACH_ID) {
-      return <MobileInviteGate variant="banditore" />;
-    }
     return (
-      <BanditoreRoomEntry
-        defaultCode={stanzaCode || INITIAL_DEEP_LINK?.stanza || ''}
-        onJoin={joinAsBanditore}
+      <EntryScreen
+        defaultStanza={stanzaCode}
+        onJoin={joinRoom}
       />
     );
   }
@@ -763,7 +732,7 @@ function AstaTorneoAbly() {
       <CoachJoinPending
         name={pendingJoin.name}
         error={joinError}
-        hint="Il coach 1 (Banditore) deve entrare per primo e aprire la stanza."
+        hint="Il banditore deve entrare per primo e aprire la stanza."
         onBack={cancelPendingJoin}
         onRetry={joinError ? retryPendingJoin : undefined}
       />

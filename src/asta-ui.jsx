@@ -7,21 +7,17 @@ import {
   saveSetup,
   splitPlayerName,
   createSetupPlayer,
-  createSetupCoach,
-  buildCoachInviteLink,
-  buildShareAllMessage,
-  getInviteCoaches,
-  getCoachInviteLabel,
+  getAppBaseUrl,
+  buildShareInviteMessage,
   isMobileDevice,
   isBanditoreRole,
   getCoachDisplayName,
   getJoinedCoaches,
-  getSetupCoaches,
   BANDITORE_COACH_ID,
   BANDITORE_PASSWORD,
-  COACH_COUNT,
 } from './asta-setup.js';
 import { useAuctionBeep, useBidSound, usePlayerStartSound, playBidFeedback, URGENT_TIMER_SECONDS } from './useAuctionBeep.js';
+import { FullscreenToggle } from './useFullscreen.jsx';
 
 const ROSTER_SLOTS = 5;
 const APP_TITLE = 'Asta Torneo Basket';
@@ -48,6 +44,7 @@ export function ArenaHeader({ meta, onChangeCoach, actions }) {
         <div className="dash-meta">{meta}</div>
         <div className="dash-actions">
           {actions}
+          {!isMobileDevice() && <FullscreenToggle />}
           <button type="button" className="btn-ghost" onClick={onChangeCoach}>
             Cambia allenatore
           </button>
@@ -204,26 +201,40 @@ function TabBar({ active, onChange }) {
   );
 }
 
-export function BanditoreRoomEntry({ defaultCode, onJoin }) {
-  const [code, setCode] = useState(defaultCode || '');
+export function EntryScreen({ defaultStanza = '', onJoin }) {
+  const [stanza, setStanza] = useState(defaultStanza);
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('coach');
   const [password, setPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
+  const [error, setError] = useState('');
+
+  const isBanditore = role === 'banditore';
 
   const handleJoin = () => {
-    const normalized = code.trim().toUpperCase();
-    if (!normalized) return;
-    if (password !== BANDITORE_PASSWORD) {
-      setPasswordError('Password non valida');
+    const stanzaNorm = stanza.trim().toUpperCase();
+    const nameTrim = name.trim();
+    if (!stanzaNorm || !nameTrim) {
+      setError('Compila nome stanza e il tuo nome.');
       return;
     }
-    setPasswordError('');
-    onJoin(normalized);
+    if (isBanditore && password !== BANDITORE_PASSWORD) {
+      setError('Password banditore non valida.');
+      return;
+    }
+    setError('');
+    onJoin({
+      stanza: stanzaNorm,
+      name: nameTrim,
+      role: isBanditore ? 'banditore' : 'coach',
+    });
   };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') handleJoin();
   };
 
+  const canSubmit = stanza.trim() && name.trim() && (!isBanditore || password);
+
   return (
     <div className="app dash">
       <header className="dash-header">
@@ -232,223 +243,94 @@ export function BanditoreRoomEntry({ defaultCode, onJoin }) {
           <h1 className="arena-title">{APP_TITLE}</h1>
           <div className="arena-line" />
         </div>
-        <p className="dash-subtitle">Accesso banditore — dashboard asta</p>
-        <p className="room-hint muted">Gli allenatori entrano solo dal link che invii dal Setup</p>
+        <p className="dash-subtitle">Entra nell&apos;asta del torneo</p>
       </header>
 
-      <div className="room-entry room-entry-banditore">
-        <label className="room-label" htmlFor="stanza-code">Codice stanza</label>
+      <div className="room-entry room-entry-unified">
+        <label className="room-label" htmlFor="entry-stanza">Nome stanza</label>
         <input
-          id="stanza-code"
+          id="entry-stanza"
           type="text"
           className="room-input"
           placeholder="es. TORNEO2025"
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          value={stanza}
+          onChange={(e) => setStanza(e.target.value.toUpperCase())}
           onKeyDown={handleKeyDown}
           autoComplete="off"
         />
 
-        <label className="room-label" htmlFor="banditore-password">Password banditore</label>
+        <label className="room-label" htmlFor="entry-name">Il tuo nome</label>
         <input
-          id="banditore-password"
-          type="password"
+          id="entry-name"
+          type="text"
           className="room-input room-input-sm"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => {
-            setPassword(e.target.value);
-            if (passwordError) setPasswordError('');
-          }}
+          placeholder="es. Marco"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
           onKeyDown={handleKeyDown}
-          autoComplete="current-password"
+          autoComplete="name"
         />
 
-        {passwordError && (
-          <p className="room-password-alert alert" role="alert">{passwordError}</p>
+        <p className="room-label room-coach-label">Ruolo</p>
+        <div className="entry-role-grid">
+          <button
+            type="button"
+            className={`picker-card entry-role-card ${role === 'coach' ? 'selected' : ''}`}
+            style={{ '--coach-color': getCoachColor(2) }}
+            onClick={() => setRole('coach')}
+          >
+            <span className="picker-name">Allenatore</span>
+            <span className="picker-tag muted-tag">Rilancia dal telefono</span>
+          </button>
+          <button
+            type="button"
+            className={`picker-card entry-role-card ${role === 'banditore' ? 'selected' : ''}`}
+            style={{ '--coach-color': getCoachColor(1) }}
+            onClick={() => setRole('banditore')}
+          >
+            <span className="picker-name">Banditore</span>
+            <span className="picker-tag">Controlli asta · PC</span>
+          </button>
+        </div>
+
+        {isBanditore && (
+          <>
+            <label className="room-label" htmlFor="entry-password">Password banditore</label>
+            <input
+              id="entry-password"
+              type="password"
+              className="room-input room-input-sm"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (error) setError('');
+              }}
+              onKeyDown={handleKeyDown}
+              autoComplete="current-password"
+            />
+          </>
+        )}
+
+        {error && (
+          <p className="room-password-alert alert" role="alert">{error}</p>
         )}
 
         <button
           type="button"
-          className="btn-cta btn-cta-lg"
-          disabled={!code.trim() || !password}
-          onClick={handleJoin}
-        >
-          Entra come banditore
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export function MobileInviteGate({ variant = 'invite' }) {
-  const isBanditoreHint = variant === 'banditore';
-  return (
-    <div className="app mobile-coach">
-      <header className="mobile-coach-header">
-        <h1 className="mobile-coach-title">{APP_TITLE}</h1>
-        <p className="mobile-coach-sub">
-          {isBanditoreHint
-            ? 'Il banditore accede solo dal PC con codice stanza e password.'
-            : 'Apri il link personale inviato dal banditore per entrare nell\'asta.'}
-        </p>
-      </header>
-      {!isBanditoreHint && (
-        <p className="room-hint muted mobile-invite-hint">
-          Chiedi al banditore di condividere il tuo link dalla schermata Setup.
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** Ingresso allenatore via link (codice precompilato, slot già scelto) */
-export function CoachLinkEntry({ defaultCode, coachName, onJoin }) {
-  const [code, setCode] = useState(defaultCode || '');
-
-  const handleJoin = () => {
-    const normalized = code.trim().toUpperCase();
-    if (!normalized) return;
-    onJoin(normalized);
-  };
-
-  return (
-    <div className="app mobile-coach">
-      <header className="mobile-coach-header">
-        <h1 className="mobile-coach-title">{APP_TITLE}</h1>
-        <p className="mobile-coach-sub">Entra come {coachName}</p>
-      </header>
-      <div className="mobile-entry-form">
-        <label className="room-label" htmlFor="coach-stanza-code">Codice stanza</label>
-        <input
-          id="coach-stanza-code"
-          type="text"
-          className="mobile-name-input"
-          placeholder="es. TORNEO2025"
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-          autoComplete="off"
-        />
-        <button
-          type="button"
-          className="btn-cta btn-cta-lg"
-          disabled={!code.trim()}
-          onClick={handleJoin}
-        >
-          Entra nell&apos;asta
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/** @deprecated Usa BanditoreRoomEntry o MobileInviteGate */
-export function RoomEntryScreen({ defaultCode, defaultCoachId, onJoin }) {
-  const coaches = getSetupCoaches();
-  const [code, setCode] = useState(defaultCode || '');
-  const [selectedId, setSelectedId] = useState(defaultCoachId ?? null);
-
-  const handleJoin = () => {
-    const normalized = code.trim().toUpperCase();
-    if (!normalized || !selectedId) return;
-    const coach = coaches.find((c) => c.id === selectedId);
-    if (!coach) return;
-    onJoin(normalized, selectedId, getCoachDisplayName(coach));
-  };
-
-  return (
-    <div className="app dash">
-      <header className="dash-header">
-        <div className="dash-brand">
-          <div className="arena-line" />
-          <h1 className="arena-title">{APP_TITLE}</h1>
-          <div className="arena-line" />
-        </div>
-        <p className="dash-subtitle">Inserisci il codice stanza e scegli il tuo allenatore</p>
-        <p className="room-hint muted">Coach 1 = Banditore (controlli asta) · Coach 2–8 = Allenatori</p>
-      </header>
-
-      <div className="room-entry">
-        <label className="room-label" htmlFor="stanza-code">Codice stanza</label>
-        <input
-          id="stanza-code"
-          type="text"
-          className="room-input"
-          placeholder="es. TORNEO2025"
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-          autoComplete="off"
-        />
-
-        <p className="room-label room-coach-label">Scegli il tuo allenatore</p>
-        <div className="picker-grid room-coach-grid">
-          {coaches.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={`picker-card ${selectedId === c.id ? 'selected' : ''}`}
-              style={{ '--coach-color': getCoachColor(c.id) }}
-              onClick={() => setSelectedId(c.id)}
-            >
-              <span className="picker-num">{c.id}</span>
-              <span className="picker-name">{getCoachDisplayName(c)}</span>
-              {c.id === BANDITORE_COACH_ID && <span className="picker-tag">Banditore</span>}
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
           className="btn-cta btn-cta-lg room-enter-btn"
-          disabled={!code.trim() || !selectedId}
+          disabled={!canSubmit}
           onClick={handleJoin}
         >
-          Entra nell&apos;asta
+          ENTRA
         </button>
-      </div>
-    </div>
-  );
-}
 
-/** @deprecated Usa MobileInviteGate o CoachLinkEntry */
-export function MobileRoomEntry(props) {
-  return <MobileInviteGate {...props} />;
-}
-
-export function MobileLocalEntry({ onJoin }) {
-  const [name, setName] = useState('');
-
-  const handleJoin = () => {
-    const trimmedName = name.trim();
-    if (!trimmedName) return;
-    onJoin(trimmedName);
-  };
-
-  return (
-    <div className="app mobile-coach">
-      <header className="mobile-coach-header">
-        <h1 className="mobile-coach-title">{APP_TITLE}</h1>
-        <p className="mobile-coach-sub">Inserisci il tuo nome per rilanciare</p>
-      </header>
-      <div className="mobile-entry-form">
-        <label className="room-label" htmlFor="coach-name">Il tuo nome</label>
-        <input
-          id="coach-name"
-          type="text"
-          className="mobile-name-input"
-          placeholder="es. Marco"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          autoComplete="name"
-        />
-        <button
-          type="button"
-          className="btn-cta btn-cta-lg"
-          disabled={!name.trim()}
-          onClick={handleJoin}
-        >
-          Entra nell&apos;asta
-        </button>
+        {!isMobileDevice() && (
+          <div className="room-fullscreen-row">
+            <FullscreenToggle className="btn-secondary btn-fullscreen" />
+            <span className="muted room-fullscreen-hint">Esc per uscire dallo schermo intero</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -640,18 +522,6 @@ export function CoachMobileUI({
   );
 }
 
-/** @deprecated Usa BanditoreRoomEntry o MobileRoomEntry */
-export function RoomEntry(props) {
-  return isMobileDevice()
-    ? <MobileRoomEntry {...props} />
-    : <BanditoreRoomEntry defaultCode={props.defaultCode} onJoin={props.onJoin} />;
-}
-
-export function CoachPicker({ onSelect }) {
-  return (
-    <MobileLocalEntry onJoin={(name) => onSelect(name)} />
-  );
-}
 
 function AddPlayerModal({ onConfirm, onClose }) {
   const [name, setName] = useState('');
@@ -721,32 +591,19 @@ function AddPlayerModal({ onConfirm, onClose }) {
   );
 }
 
-function ShareLinksSection({ stanzaCode, coaches }) {
-  const [showLinks, setShowLinks] = useState(false);
-  const [copiedId, setCopiedId] = useState(null);
+function ShareLinksSection({ stanzaCode }) {
+  const [copied, setCopied] = useState(false);
   const [shareStatus, setShareStatus] = useState('');
 
-  const inviteCoaches = getInviteCoaches(coaches);
+  const appUrl = getAppBaseUrl();
   const normalizedStanza = stanzaCode?.trim().toUpperCase() || '';
+  const message = normalizedStanza ? buildShareInviteMessage(normalizedStanza) : '';
 
-  const copyLink = async (coach) => {
-    const link = buildCoachInviteLink(normalizedStanza, coach.id);
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopiedId(coach.id);
-      setTimeout(() => setCopiedId((prev) => (prev === coach.id ? null : prev)), 2000);
-    } catch {
-      setShareStatus('Copia non riuscita');
-      setTimeout(() => setShareStatus(''), 2000);
-    }
-  };
-
-  const shareAll = async () => {
-    if (!normalizedStanza) return;
-    const message = buildShareAllMessage(normalizedStanza, coaches);
+  const shareInvite = async () => {
+    if (!message) return;
     if (navigator.share) {
       try {
-        await navigator.share({ text: message, title: 'Link asta torneo' });
+        await navigator.share({ text: message, title: 'Asta Torneo Basket' });
         return;
       } catch (err) {
         if (err?.name === 'AbortError') return;
@@ -762,62 +619,48 @@ function ShareLinksSection({ stanzaCode, coaches }) {
     }
   };
 
-  const handleShowLinks = () => {
-    if (!normalizedStanza) return;
-    setShowLinks(true);
+  const copyInvite = async () => {
+    if (!message) return;
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setShareStatus('Copia non riuscita');
+      setTimeout(() => setShareStatus(''), 2000);
+    }
   };
 
   return (
     <section className="dash-panel share-links-panel">
       <div className="panel-head">
-        <h2 className="panel-title">Link WhatsApp allenatori</h2>
+        <h2 className="panel-title">Invita allenatori</h2>
         {normalizedStanza && <span className="panel-count">Stanza {normalizedStanza}</span>}
       </div>
 
       {!normalizedStanza ? (
         <p className="setup-note muted">
-          Entra con codice stanza e password dalla dashboard per generare i link personali.
+          Entra con una stanza per condividere l&apos;invito agli allenatori.
         </p>
       ) : (
         <>
           <p className="setup-note muted">
-            Ogni allenatore (2–8) ha un link personale. Invia su WhatsApp o Telegram.
+            Un solo link per tutti. Gli allenatori inseriscono nome stanza e il proprio nome.
           </p>
+          <div className="share-invite-preview">
+            <code className="share-link-url">{appUrl}</code>
+            <p className="share-stanza-label">
+              Nome stanza: <strong>{normalizedStanza}</strong>
+            </p>
+          </div>
           <div className="share-links-actions">
-            <button type="button" className="btn-cta" onClick={handleShowLinks}>
-              Condividi links
+            <button type="button" className="btn-cta" onClick={shareInvite}>
+              Condividi su WhatsApp
             </button>
-            <button type="button" className="btn-secondary share-all-btn" onClick={shareAll}>
-              Condividi tutti
+            <button type="button" className="btn-secondary share-all-btn" onClick={copyInvite}>
+              {copied ? 'Copiato ✓' : 'Copia invito'}
             </button>
           </div>
-
-          {showLinks && (
-            <ul className="share-links-list">
-              {inviteCoaches.map((c) => {
-                const link = buildCoachInviteLink(normalizedStanza, c.id);
-                const label = getCoachInviteLabel(c);
-                return (
-                  <li key={c.id} className="share-link-item">
-                    <div className="share-link-head">
-                      <span className="coach-num sm" style={{ '--coach-color': getCoachColor(c.id) }}>{c.id}</span>
-                      <span className="share-coach-name">{label}</span>
-                    </div>
-                    <div className="share-link-row">
-                      <code className="share-link-url">{link}</code>
-                      <button
-                        type="button"
-                        className="btn-secondary share-copy-btn"
-                        onClick={() => copyLink(c)}
-                      >
-                        {copiedId === c.id ? 'Copiato ✓' : 'Copia'}
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
         </>
       )}
       {shareStatus && <p className="share-status muted">{shareStatus}</p>}
@@ -851,13 +694,6 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '' }) {
     });
   };
 
-  const updateCoach = (id, name) => {
-    setDraft((d) => ({
-      ...d,
-      coaches: d.coaches.map((c) => (c.id === id ? { ...c, name } : c)),
-    }));
-  };
-
   const handleSave = () => {
     saveSetup(draft);
     onSave(draft);
@@ -869,7 +705,7 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '' }) {
         meta={<span className="pill">Configurazione torneo</span>}
         onChangeCoach={onClose}
       />
-      <div className="setup-grid">
+      <div className="setup-grid setup-grid-single">
         <section className="dash-panel setup-players-panel">
           <div className="panel-head">
             <h2 className="panel-title">Giocatori in asta</h2>
@@ -907,31 +743,9 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '' }) {
             ))}
           </ul>
         </section>
-
-        <section className="dash-panel setup-coaches-panel">
-          <div className="panel-head">
-            <h2 className="panel-title">Allenatori ({COACH_COUNT})</h2>
-            <span className="panel-count">#1 = Banditore</span>
-          </div>
-          <p className="setup-note muted">Rinomina gli 8 allenatori. I link personali (coach 2–8) si generano sotto.</p>
-          <ul className="setup-list coaches">
-            {draft.coaches.slice(0, COACH_COUNT).map((c) => (
-              <li key={c.id}>
-                <span className="coach-num sm" style={{ '--coach-color': getCoachColor(c.id) }}>{c.id}</span>
-                <input
-                  type="text"
-                  value={c.name}
-                  onChange={(e) => updateCoach(c.id, e.target.value)}
-                  placeholder={c.id === BANDITORE_COACH_ID ? 'Banditore' : `Allenatore ${c.id}`}
-                />
-                {c.id === BANDITORE_COACH_ID && <span className="picker-tag">Banditore</span>}
-              </li>
-            ))}
-          </ul>
-        </section>
       </div>
 
-      <ShareLinksSection stanzaCode={stanzaCode} coaches={draft.coaches} />
+      <ShareLinksSection stanzaCode={stanzaCode} />
       <div className="setup-actions">
         <button type="button" className="btn-cta" onClick={handleSave}>Salva configurazione</button>
         <button type="button" className="btn-secondary" onClick={onClose}>Torna alla dashboard</button>
@@ -1101,7 +915,7 @@ export function AuctionUI({
           </div>
           <ul className="coaches-cards">
             {joinedCoaches.length === 0 && (
-              <li className="muted coaches-empty">Nessun allenatore connesso — entrano dal link col cellulare</li>
+              <li className="muted coaches-empty">Nessun allenatore connesso — entrano con nome e stanza</li>
             )}
             {joinedCoaches.map((c) => (
               <CoachCard
@@ -1215,7 +1029,7 @@ export function AuctionUI({
                 </li>
               ))}
             </ul>
-            <p className="setup-note muted">Ogni allenatore entra dal link con il proprio nome.</p>
+            <p className="setup-note muted">Ogni allenatore entra con nome e codice stanza.</p>
           </aside>
         ) : (
           <aside className="dash-panel myteam-panel">

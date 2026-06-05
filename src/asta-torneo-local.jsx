@@ -5,39 +5,52 @@ import {
   loadSetup,
   saveSetup,
   mergeSetupIntoPlayers,
-  isMobileDevice,
+  BANDITORE_COACH_ID,
   BANDITORE_KEY,
   isBanditoreRole,
   joinCoachIntoState,
   addSetupPlayer,
-  parseDeepLinkFromUrl,
-  clearDeepLinkFromUrl,
 } from './asta-setup.js';
 import { buildRestartPlayerState, removeCoachFromState } from './asta-logic.js';
-import { AuctionUI, CoachMobileUI, MobileLocalEntry, SetupScreen } from './asta-ui.jsx';
+import { AuctionUI, CoachMobileUI, EntryScreen, SetupScreen } from './asta-ui.jsx';
 
 const COACH_STORAGE_KEY = 'asta_coach_id';
+const STANZA_STORAGE_KEY = 'asta_stanza_code';
+const BANDITORE_SESSION_KEY = 'asta_banditore_verified';
 const BID_INCREMENT = 1;
 const LOCAL_STANZA = 'LOCALE';
 const COACH_EXIT_CONFIRM = 'Se esci non potrai rientrare con lo stesso profilo.\n\nDovrai entrare di nuovo come nuovo allenatore.\n\nConfermi l\'uscita?';
-const INITIAL_DEEP_LINK = parseDeepLinkFromUrl();
+
+function parseSavedCoachId(saved) {
+  if (!saved) return null;
+  if (saved === BANDITORE_KEY) return BANDITORE_COACH_ID;
+  const parsed = Number(saved);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isBanditoreSessionVerified() {
+  return sessionStorage.getItem(BANDITORE_SESSION_KEY) === '1';
+}
+
+function shouldShowEntry() {
+  const savedCoach = localStorage.getItem(COACH_STORAGE_KEY);
+  const savedStanza = localStorage.getItem(STANZA_STORAGE_KEY);
+  if (!savedStanza || !savedCoach) return true;
+  if (isBanditoreRole(parseSavedCoachId(savedCoach))) {
+    return !isBanditoreSessionVerified();
+  }
+  return false;
+}
 
 export function AstaTorneoLocal() {
   const [coachId, setCoachId] = useState(() => {
-    if (INITIAL_DEEP_LINK) return INITIAL_DEEP_LINK.coachId;
-    const saved = localStorage.getItem(COACH_STORAGE_KEY);
-    if (saved) return isBanditoreRole(saved) ? BANDITORE_KEY : Number(saved);
-    if (!isMobileDevice()) {
-      localStorage.setItem(COACH_STORAGE_KEY, BANDITORE_KEY);
-      return BANDITORE_KEY;
+    if (!isBanditoreSessionVerified() && isBanditoreRole(parseSavedCoachId(localStorage.getItem(COACH_STORAGE_KEY)))) {
+      return null;
     }
-    return null;
+    return parseSavedCoachId(localStorage.getItem(COACH_STORAGE_KEY));
   });
-  const [showCoachPicker, setShowCoachPicker] = useState(() => {
-    if (INITIAL_DEEP_LINK) return false;
-    const saved = localStorage.getItem(COACH_STORAGE_KEY);
-    return !saved && isMobileDevice();
-  });
+  const [stanzaCode, setStanzaCode] = useState(() => localStorage.getItem(STANZA_STORAGE_KEY) ?? '');
+  const [showEntry, setShowEntry] = useState(shouldShowEntry);
   const [showSetup, setShowSetup] = useState(false);
   const [bidError, setBidError] = useState('');
   const [actionError, setActionError] = useState('');
@@ -48,18 +61,7 @@ export function AstaTorneoLocal() {
   const [timer, setTimer] = useState(AUCTION_SECONDS);
   const [isRunning, setIsRunning] = useState(false);
   const [phase, setPhase] = useState('idle');
-  const [coaches, setCoaches] = useState(() => {
-    if (INITIAL_DEEP_LINK) {
-      return [{
-        id: INITIAL_DEEP_LINK.coachId,
-        name: INITIAL_DEEP_LINK.name,
-        budget: 500,
-        players: [],
-        online: true,
-      }];
-    }
-    return [];
-  });
+  const [coaches, setCoaches] = useState([]);
   const [players, setPlayers] = useState(() => buildInitialPlayers());
   const [log, setLog] = useState([{ text: 'Asta pronta (modalità locale).', timestamp: Date.now() }]);
 
@@ -75,12 +77,33 @@ export function AstaTorneoLocal() {
     setLog((prev) => [...prev, { text, timestamp: Date.now() }].slice(-100));
   };
 
-  useEffect(() => {
-    if (!INITIAL_DEEP_LINK) return;
-    localStorage.setItem(COACH_STORAGE_KEY, String(INITIAL_DEEP_LINK.coachId));
-    clearDeepLinkFromUrl();
-    pushLog(`${INITIAL_DEEP_LINK.name} entrato dall'link personale.`);
-  }, []);
+  const joinRoom = ({ stanza, name, role }) => {
+    const normalized = stanza.trim().toUpperCase();
+    const trimmedName = name.trim();
+    if (!normalized || !trimmedName) return;
+
+    localStorage.setItem(STANZA_STORAGE_KEY, normalized);
+    setStanzaCode(normalized);
+    setShowEntry(false);
+
+    if (role === 'banditore') {
+      sessionStorage.setItem(BANDITORE_SESSION_KEY, '1');
+      localStorage.setItem(COACH_STORAGE_KEY, String(BANDITORE_COACH_ID));
+      setCoachId(BANDITORE_COACH_ID);
+      pushLog('Banditore connesso.');
+      return;
+    }
+
+    const { coaches: nextCoaches, coachId: id, error } = joinCoachIntoState(coaches, null, trimmedName);
+    if (error) {
+      setShowEntry(true);
+      return;
+    }
+    setCoaches(nextCoaches);
+    localStorage.setItem(COACH_STORAGE_KEY, String(id));
+    setCoachId(id);
+    pushLog(`${trimmedName} si è unito all'asta.`);
+  };
 
   const advanceToNext = useCallback((updatedPlayers) => {
     const next = updatedPlayers.find((p) => p.status === 'available') ?? null;
@@ -120,7 +143,6 @@ export function AstaTorneoLocal() {
       pushLog(`${player.name} non venduto (nessuna offerta).`);
     }
 
-    pendingPlayersRef.current = updatedPlayers;
     setPlayers(updatedPlayers);
     setCoaches(updatedCoaches);
     setPhase('settled');
@@ -131,7 +153,7 @@ export function AstaTorneoLocal() {
   useEffect(() => {
     if (!isAuctioneer || phase !== 'live' || !isRunning || !currentPlayer) {
       if (timerRef.current) clearInterval(timerRef.current);
-      return;
+      return undefined;
     }
 
     timerRef.current = setInterval(() => {
@@ -146,19 +168,13 @@ export function AstaTorneoLocal() {
     }, 1000);
 
     return () => clearInterval(timerRef.current);
-  }, [isAuctioneer, phase, currentPlayer?.id, handleAssign]);
-
-  const handleConfirmNext = () => {
-    if (!isAuctioneer || phase !== 'settled') return;
-    if (pendingPlayersRef.current) advanceToNext(pendingPlayersRef.current);
-  };
+  }, [isAuctioneer, phase, isRunning, currentPlayer?.id, handleAssign]);
 
   const handleRestartPlayer = () => {
-    if (!isAuctioneer || phase !== 'settled') return;
     const snapshot = {
-      currentPlayer,
       currentBid,
       currentBidder,
+      currentPlayer,
       coaches,
       players,
       phase,
@@ -178,24 +194,6 @@ export function AstaTorneoLocal() {
     setTimer(AUCTION_SECONDS);
     pushLog(`Asta riavviata: ${next.currentPlayer.name}`);
   };
-
-  const joinLocalCoach = (name) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    const savedId = parseSavedCoachId(localStorage.getItem(COACH_STORAGE_KEY));
-    const { coaches: nextCoaches, coachId: id } = joinCoachIntoState(coaches, savedId, trimmed);
-    setCoaches(nextCoaches);
-    localStorage.setItem(COACH_STORAGE_KEY, String(id));
-    setCoachId(id);
-    setShowCoachPicker(false);
-    pushLog(`${trimmed} si è unito all'asta.`);
-  };
-
-  function parseSavedCoachId(saved) {
-    if (!saved || isBanditoreRole(saved)) return null;
-    const parsed = Number(saved);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
 
   const reloadFromSetup = () => {
     setCoaches([]);
@@ -217,12 +215,6 @@ export function AstaTorneoLocal() {
   const handleSetupSave = (draft) => {
     saveSetup(draft);
     setPlayers((prev) => mergeSetupIntoPlayers(prev, draft.players));
-    setCoaches((prev) => prev.map((c) => {
-      const sc = draft.coaches.find((x) => x.id === c.id);
-      if (!sc) return c;
-      const updatedName = (sc.name || '').trim();
-      return updatedName ? { ...c, name: updatedName } : c;
-    }));
     setShowSetup(false);
     pushLog('Configurazione aggiornata.');
   };
@@ -284,14 +276,14 @@ export function AstaTorneoLocal() {
   };
 
   const handleStopAuction = () => {
-    setPhase('paused');
     setIsRunning(false);
+    setPhase('paused');
     pushLog('Asta in pausa.');
   };
 
   const handleNextPlayer = () => {
     if (phase === 'settled') {
-      handleConfirmNext();
+      advanceToNext(players);
       return;
     }
     const available = players.filter((p) => p.status === 'available');
@@ -299,69 +291,78 @@ export function AstaTorneoLocal() {
     setCurrentPlayer(next);
     setCurrentBid(0);
     setCurrentBidder(null);
-    setTimer(AUCTION_SECONDS);
     setPhase(next ? 'live' : 'idle');
+    setTimer(AUCTION_SECONDS);
     setIsRunning(Boolean(next));
-    pendingPlayersRef.current = null;
     if (next) pushLog(`Prossimo giocatore: ${next.name}`);
   };
 
+  const handleConfirmNext = () => {
+    if (phase !== 'settled') return;
+    advanceToNext(players);
+  };
+
   const handleBid = (amount) => {
-    if (!coachId || isAuctioneer) return;
+    if (isAuctioneer || !coachId) return;
     if (phase !== 'live' || !isRunning || !currentPlayer) {
       setBidError('Nessuna asta attiva.');
       return;
     }
     const coach = coaches.find((c) => c.id === coachId);
-    const minBid = currentBid + BID_INCREMENT;
     if (!coach || coach.budget < amount) {
       setBidError('Budget insufficiente.');
       return;
     }
+    const minBid = Math.max(currentBid + BID_INCREMENT, 1);
     if (amount < minBid) {
       setBidError('Offerta troppo bassa.');
       return;
     }
+    setBidError('');
     setCurrentBid(amount);
     setCurrentBidder(coachId);
     setTimer(AUCTION_SECONDS);
-    setBidError('');
   };
 
-  const applyCoachRemoval = (targetCoachId, logText) => {
+  const applyCoachRemoval = (targetId, logText) => {
     const snapshot = stateRef.current;
-    const coach = snapshot.coaches.find((c) => c.id === targetCoachId);
-    if (!coach) return;
-    const next = removeCoachFromState(snapshot, targetCoachId);
+    const next = removeCoachFromState(snapshot, targetId);
     setCoaches(next.coaches);
     setPlayers(next.players);
-    if (next.currentBidder !== snapshot.currentBidder) {
-      setCurrentBidder(next.currentBidder);
-      setCurrentBid(next.currentBid);
+    if (next.currentBidder === targetId) {
+      setCurrentBidder(null);
+      setCurrentBid(0);
     }
     pushLog(logText);
-  };
-
-  const leaveAsCoachWithConfirm = () => {
-    if (!coachId || isAuctioneer) return;
-    if (!window.confirm(COACH_EXIT_CONFIRM)) return;
-    applyCoachRemoval(coachId, `${coaches.find((c) => c.id === coachId)?.name ?? 'Allenatore'} ha lasciato l'asta.`);
-    coachRegisteredRef.current = false;
-    localStorage.removeItem(COACH_STORAGE_KEY);
-    setCoachId(null);
-    setShowCoachPicker(true);
   };
 
   const handleRemoveCoach = (targetCoachId) => {
     if (!isAuctioneer) return;
     const coach = coaches.find((c) => c.id === targetCoachId);
     if (!coach) return;
-    if (!window.confirm(`Rimuovere ${coach.name} dall'asta?\n\nI suoi giocatori torneranno disponibili.`)) return;
+    if (!window.confirm(`Rimuovere ${coach.name} dall'asta?`)) return;
     applyCoachRemoval(targetCoachId, `${coach.name} rimosso dal banditore`);
   };
 
+  const leaveRoom = () => {
+    if (isAuctioneer) {
+      sessionStorage.removeItem(BANDITORE_SESSION_KEY);
+      localStorage.removeItem(COACH_STORAGE_KEY);
+      localStorage.removeItem(STANZA_STORAGE_KEY);
+      setCoachId(null);
+      setStanzaCode('');
+      setShowEntry(true);
+      return;
+    }
+    if (!window.confirm(COACH_EXIT_CONFIRM)) return;
+    localStorage.removeItem(COACH_STORAGE_KEY);
+    localStorage.removeItem(STANZA_STORAGE_KEY);
+    setCoachId(null);
+    setShowEntry(true);
+  };
+
   useEffect(() => {
-    if (isAuctioneer || !coachId || showCoachPicker) {
+    if (isAuctioneer || !coachId || showEntry) {
       coachRegisteredRef.current = false;
       return;
     }
@@ -375,12 +376,17 @@ export function AstaTorneoLocal() {
       alert('Sei stato rimosso dall\'asta dal banditore.');
       localStorage.removeItem(COACH_STORAGE_KEY);
       setCoachId(null);
-      setShowCoachPicker(true);
+      setShowEntry(true);
     }
-  }, [coaches, coachId, isAuctioneer, showCoachPicker]);
+  }, [coaches, coachId, isAuctioneer, showEntry]);
 
-  if (showCoachPicker) {
-    return <MobileLocalEntry onJoin={joinLocalCoach} />;
+  if (showEntry) {
+    return (
+      <EntryScreen
+        defaultStanza={stanzaCode || LOCAL_STANZA}
+        onJoin={joinRoom}
+      />
+    );
   }
 
   if (showSetup && isAuctioneer) {
@@ -388,18 +394,16 @@ export function AstaTorneoLocal() {
       <SetupScreen
         onSave={handleSetupSave}
         onClose={() => setShowSetup(false)}
-        stanzaCode={LOCAL_STANZA}
+        stanzaCode={stanzaCode || LOCAL_STANZA}
       />
     );
   }
 
   const sharedProps = {
     coachId,
-    onChangeCoach: isAuctioneer
-      ? () => { localStorage.removeItem(COACH_STORAGE_KEY); setShowCoachPicker(true); }
-      : leaveAsCoachWithConfirm,
+    onChangeCoach: leaveRoom,
     connected: true,
-    connectedLabel: 'Locale',
+    connectedLabel: `Locale · ${stanzaCode || LOCAL_STANZA}`,
     currentPlayer,
     currentBid,
     currentBidder,

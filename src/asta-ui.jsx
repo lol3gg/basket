@@ -1157,11 +1157,13 @@ export function AuctionUI({
 
   usePlayerStartSound({
     currentPlayerId: currentPlayer?.id,
+    currentPlayerName: currentPlayer?.name,
     phase,
     isRunning,
     currentBid,
     timer,
     maxTimer: AUCTION_SECONDS,
+    announceVoice: isAuctioneer && !isMobileDevice(),
   });
 
   useCoachJoinAlert({

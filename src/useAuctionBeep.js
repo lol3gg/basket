@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { isMobileDevice } from './asta-setup.js';
 
 export const URGENT_TIMER_SECONDS = 5;
 
@@ -165,14 +166,27 @@ export function useBidSound({ currentBid, currentBidder, phase, isRunning, curre
   }, [currentBid, currentBidder, phase, isRunning, currentPlayerId]);
 }
 
+function announcePlayerName(name) {
+  const trimmed = (name || '').trim();
+  if (!trimmed || !('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const msg = new SpeechSynthesisUtterance(trimmed);
+  msg.lang = 'it-IT';
+  msg.pitch = 1.1;
+  msg.rate = 0.9;
+  window.speechSynthesis.speak(msg);
+}
+
 /** Suono quando inizia l'asta di un nuovo giocatore (tutti i client). */
 export function usePlayerStartSound({
   currentPlayerId,
+  currentPlayerName = '',
   phase,
   isRunning,
   currentBid,
   timer,
   maxTimer = 15,
+  announceVoice = false,
 }) {
   const lastPlayerRef = useRef(null);
   const lastPhaseRef = useRef(null);
@@ -197,11 +211,14 @@ export function usePlayerStartSound({
     if (playerChanged || newPlayerCall || restarted) {
       const ctx = getAudioContext(ctxRef);
       if (ctx) runWithAudio(ctx, () => playPlayerStartSoundOnce(ctx));
+      if (announceVoice && !isMobileDevice()) {
+        announcePlayerName(currentPlayerName);
+      }
     }
 
     lastPlayerRef.current = currentPlayerId;
     lastPhaseRef.current = phase;
-  }, [currentPlayerId, phase, isRunning, currentBid, timer, maxTimer]);
+  }, [currentPlayerId, currentPlayerName, phase, isRunning, currentBid, timer, maxTimer, announceVoice]);
 }
 
 function playCoachJoinSound(ctx) {

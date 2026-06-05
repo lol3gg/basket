@@ -4,14 +4,14 @@ export const CLOSE_SECONDS = 6;
 export const SETUP_STORAGE_KEY = 'asta_setup_v2';
 
 export const COACH_COLORS = [
-  '#3B82F6',
-  '#60A5FA',
-  '#818CF8',
-  '#06B6D4',
-  '#22C55E',
-  '#F59E0B',
-  '#A78BFA',
-  '#EF4444',
+  '#D4AF37',
+  '#FACC15',
+  '#EAB308',
+  '#FDE047',
+  '#CA8A04',
+  '#FFD700',
+  '#B8860B',
+  '#C5A028',
 ];
 
 export const PLAYER_COUNT = 16;
@@ -235,7 +235,7 @@ export function splitPlayerName(name) {
 }
 
 export function getCoachColor(coachId) {
-  if (!coachId) return '#3B82F6';
+  if (!coachId) return '#D4AF37';
   return COACH_COLORS[(coachId - 1) % COACH_COLORS.length];
 }
 

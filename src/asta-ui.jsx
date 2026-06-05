@@ -1105,7 +1105,7 @@ export function AuctionUI({
   const availablePlayers = players.filter((p) => p.status === 'available');
   const assignedPlayers = players.filter((p) => p.status === 'assigned');
   const leadingCoach = coaches.find((c) => c.id === currentBidder);
-  const myColor = isAuctioneer ? '#E8522A' : getCoachColor(coachId);
+  const myColor = isAuctioneer ? '#3B82F6' : getCoachColor(coachId);
   const isSettled = phase === 'settled';
   const isPaused = phase === 'paused';
   const isLive = phase === 'live' && isRunning;

@@ -115,6 +115,16 @@ export function getEmptySetup() {
   return getDefaultSetup();
 }
 
+export const RESET_ASTA_CONFIRM =
+  'Reset completo dell\'asta.\n\n'
+  + 'Verrà cancellato tutto:\n'
+  + '• Asta in corso e timer\n'
+  + '• Allenatori connessi\n'
+  + '• Assegnazioni e rose\n'
+  + '• Lista giocatori\n\n'
+  + 'Dovrai riconfigurare il torneo dal Setup.\n\n'
+  + 'Confermi il reset?';
+
 export function loadSetup() {
   try {
     if (typeof localStorage !== 'undefined') {

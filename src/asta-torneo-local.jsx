@@ -6,6 +6,8 @@ import {
   saveSetup,
   mergeSetupIntoPlayers,
   getDemoSetup,
+  getEmptySetup,
+  RESET_ASTA_CONFIRM,
   BANDITORE_COACH_ID,
   BANDITORE_KEY,
   isBanditoreRole,
@@ -212,6 +214,8 @@ export function AstaTorneoLocal() {
   };
 
   const handleInitSetup = () => {
+    if (!window.confirm(RESET_ASTA_CONFIRM)) return;
+    saveSetup(getEmptySetup());
     reloadFromSetup();
     setCurrentPlayer(null);
     setCurrentBid(0);
@@ -219,7 +223,7 @@ export function AstaTorneoLocal() {
     setTimer(AUCTION_SECONDS);
     setPhase('idle');
     setIsRunning(false);
-    setLog([{ text: 'Setup resettato.', timestamp: Date.now() }]);
+    setLog([{ text: 'Asta resettata — tutto cancellato.', timestamp: Date.now() }]);
     setActionError('');
   };
 

@@ -29,6 +29,8 @@ import {
   loadSetup,
   mergeSetupIntoPlayers,
   getDemoSetup,
+  getEmptySetup,
+  RESET_ASTA_CONFIRM,
   BANDITORE_COACH_ID,
   BANDITORE_KEY,
   isBanditoreRole,
@@ -589,7 +591,12 @@ function AstaTorneoAbly() {
 
   const handleInitSetup = () => {
     if (!isAuctioneer) return;
-    publishState(buildInitialState());
+    if (!window.confirm(RESET_ASTA_CONFIRM)) return;
+    saveSetup(getEmptySetup());
+    publishState({
+      ...buildInitialState(),
+      log: [{ text: 'Asta resettata — tutto cancellato.', timestamp: Date.now() }],
+    });
     setActionError('');
   };
 

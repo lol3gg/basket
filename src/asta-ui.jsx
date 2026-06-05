@@ -21,6 +21,7 @@ import {
 import { useAuctionBeep, useBidSound, usePlayerStartSound, useCoachJoinAlert, playBidFeedback, URGENT_TIMER_SECONDS } from './useAuctionBeep.js';
 import { FullscreenToggle } from './useFullscreen.jsx';
 import { useMobileViewportLock } from './useMobileViewportLock.js';
+import { BasketballIcon } from './BasketballDecor.jsx';
 import { buildCoachRankings, exportAstaPdf } from './exportAstaPdf.js';
 
 const ROSTER_SLOTS = 5;
@@ -61,11 +62,17 @@ export function ArenaHeader({ meta, onChangeCoach, actions }) {
 export function CourtBackground() {
   return (
     <svg className="court-bg" viewBox="0 0 940 500" aria-hidden="true">
-      <rect x="20" y="20" width="900" height="460" fill="none" stroke="currentColor" strokeWidth="3" />
-      <line x1="470" y1="20" x2="470" y2="480" stroke="currentColor" strokeWidth="3" />
-      <circle cx="470" cy="250" r="70" fill="none" stroke="currentColor" strokeWidth="3" />
-      <rect x="20" y="160" width="190" height="180" fill="none" stroke="currentColor" strokeWidth="3" />
-      <rect x="730" y="160" width="190" height="180" fill="none" stroke="currentColor" strokeWidth="3" />
+      <rect x="20" y="20" width="900" height="460" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.5" />
+      <line x1="470" y1="20" x2="470" y2="480" stroke="currentColor" strokeWidth="2" opacity="0.5" />
+      <circle cx="470" cy="250" r="70" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.45" />
+      <rect x="20" y="160" width="190" height="180" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.4" />
+      <rect x="730" y="160" width="190" height="180" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.4" />
+      <g className="court-bballs" opacity="0.35">
+        <circle cx="120" cy="90" r="28" fill="currentColor" fillOpacity="0.04" stroke="currentColor" strokeWidth="1" />
+        <path d="M120 62 v56 M92 90 h56" stroke="currentColor" strokeWidth="0.8" />
+        <circle cx="820" cy="410" r="22" fill="currentColor" fillOpacity="0.04" stroke="currentColor" strokeWidth="1" />
+        <path d="M820 388 v44 M798 410 h44" stroke="currentColor" strokeWidth="0.8" />
+      </g>
     </svg>
   );
 }
@@ -96,7 +103,7 @@ export function JerseyCard({ player, currentBid, leadingCoachId, timer, phase, w
   if (!player) {
     return (
       <div className="jersey-card jersey-empty">
-        <span className="empty-icon">?</span>
+        <BasketballIcon className="jersey-empty-ball" size={56} />
         <p className="empty-title">Nessuno in asta</p>
         <p className="muted">Il banditore avvia la prossima chiamata</p>
       </div>
@@ -733,6 +740,7 @@ export function CoachMobileUI({
       {bidError && <div className="alert mobile-alert">{bidError}</div>}
 
       <section className="mobile-stage">
+        {currentPlayer && <BasketballIcon className="mobile-stage-ball" size={48} />}
         {currentPlayer ? (
           <>
             <p className="mobile-player-label">{isSettled ? 'Asta chiusa' : 'In asta'}</p>
@@ -763,6 +771,7 @@ export function CoachMobileUI({
           </>
         ) : (
           <div className="mobile-waiting">
+            <BasketballIcon className="mobile-waiting-ball" size={52} />
             <p className="mobile-waiting-title">Nessuno in asta</p>
             <p className="muted">Attendi il prossimo giocatore</p>
           </div>

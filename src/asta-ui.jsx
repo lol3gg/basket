@@ -21,6 +21,7 @@ import {
 import { useAuctionBeep, useBidSound, usePlayerStartSound, useCoachJoinAlert, playBidFeedback, URGENT_TIMER_SECONDS } from './useAuctionBeep.js';
 import { FullscreenToggle } from './useFullscreen.jsx';
 import { useMobileViewportLock } from './useMobileViewportLock.js';
+import { AssignmentFlashOverlay, useAssignmentFlash } from './useAssignmentFlash.jsx';
 import { BasketballIcon } from './BasketballDecor.jsx';
 import { buildCoachRankings, exportAstaPdf } from './exportAstaPdf.js';
 
@@ -719,8 +720,17 @@ export function CoachMobileUI({
       : 'Non venduto')
     : null;
 
+  const assignmentFlash = useAssignmentFlash({
+    phase,
+    currentPlayer,
+    currentBid,
+    currentBidder,
+    coaches,
+  });
+
   return (
     <div className="app mobile-coach mobile-coach-fixed">
+      <AssignmentFlashOverlay flash={assignmentFlash} />
       <header className="mobile-coach-header">
         <p className="mobile-app-brand">{APP_TITLE}</p>
         <div className="mobile-coach-top">
@@ -1164,6 +1174,14 @@ export function AuctionUI({
     },
   });
 
+  const assignmentFlash = useAssignmentFlash({
+    phase,
+    currentPlayer,
+    currentBid,
+    currentBidder,
+    coaches,
+  });
+
   const bidAmounts = [
     { label: '+1', amount: Math.max(currentBid + 1, 1) },
     { label: '+5', amount: currentBid + 5 },
@@ -1196,6 +1214,7 @@ export function AuctionUI({
 
   return (
     <div className="app dash">
+      <AssignmentFlashOverlay flash={assignmentFlash} />
       <ArenaHeader
         meta={(
           <>

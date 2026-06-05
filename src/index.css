@@ -2819,6 +2819,81 @@ html:-webkit-full-screen .app {
   margin-top: 0.35rem;
 }
 
+/* Aggiudicazione — flash centrale */
+.assignment-flash-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+.assignment-flash-card {
+  max-width: min(92vw, 520px);
+  padding: 1.75rem 1.5rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  background: linear-gradient(168deg, rgba(28, 28, 28, 0.98) 0%, rgba(10, 10, 10, 0.99) 100%);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.65),
+    0 0 48px rgba(212, 175, 55, 0.2);
+  transform-origin: center center;
+}
+
+.assignment-flash-in {
+  animation: assignment-pop-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.assignment-flash-out {
+  animation: assignment-pop-out 0.5s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+.assignment-flash-text {
+  margin: 0;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  font-size: clamp(1.35rem, 5.5vw, 2rem);
+  line-height: 1.25;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.assignment-flash-text strong {
+  background: var(--gradient-gold);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@keyframes assignment-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes assignment-pop-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

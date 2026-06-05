@@ -1674,6 +1674,29 @@ body::before {
   grid-template-columns: 1fr;
 }
 
+.setup-screen {
+  max-width: none;
+  width: 100%;
+}
+
+.setup-screen .setup-grid {
+  grid-template-columns: 1fr;
+  width: 100%;
+}
+
+.setup-screen .setup-players-panel {
+  width: 100%;
+  max-height: none;
+}
+
+.setup-screen .setup-list.players li {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+
+.setup-screen .setup-list input {
+  min-width: 0;
+}
+
 .final-results {
   max-width: 960px;
   margin: 0 auto;
@@ -1930,6 +1953,11 @@ body::before {
   margin-bottom: 1rem;
 }
 
+.setup-grid.setup-grid-single,
+.setup-grid.setup-grid-players-only {
+  grid-template-columns: 1fr;
+}
+
 .setup-players-panel {
   max-height: 520px;
   overflow-y: auto;
@@ -2078,6 +2106,22 @@ body::before {
 }
 
 /* Mobile coach (allenatori) */
+html.mobile-viewport-lock,
+html.mobile-viewport-lock body {
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  inset: 0;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+html.mobile-viewport-lock #root {
+  height: 100%;
+  overflow: hidden;
+}
+
 .mobile-coach {
   max-width: 480px;
   margin: 0 auto;
@@ -2085,6 +2129,119 @@ body::before {
   display: flex;
   flex-direction: column;
   padding: 1rem 1rem 1.5rem;
+}
+
+.mobile-coach-fixed {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  height: 100svh;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  padding:
+    max(0.75rem, env(safe-area-inset-top))
+    max(0.85rem, env(safe-area-inset-right))
+    max(0.75rem, env(safe-area-inset-bottom))
+    max(0.85rem, env(safe-area-inset-left));
+  box-sizing: border-box;
+}
+
+.mobile-coach-fixed input,
+.mobile-coach-fixed textarea,
+.mobile-coach-fixed select,
+.mobile-coach-fixed button {
+  -webkit-user-select: auto;
+  user-select: auto;
+}
+
+.mobile-coach-fixed .mobile-coach-header {
+  flex-shrink: 0;
+  margin-bottom: 0.65rem;
+  padding: 0.85rem 0.75rem;
+}
+
+.mobile-coach-fixed .mobile-app-brand-center {
+  flex-shrink: 0;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.mobile-coach-fixed .mobile-entry-form {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.mobile-coach-fixed .mobile-invite-hint {
+  flex-shrink: 0;
+  padding: 0 0.25rem;
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.mobile-coach-fixed .mobile-alert {
+  flex-shrink: 0;
+}
+
+.mobile-coach-fixed .mobile-stage {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+  padding: 1rem 0.75rem;
+}
+
+.mobile-coach-fixed .mobile-bid-row {
+  flex-shrink: 0;
+}
+
+.mobile-coach-fixed .mobile-join-pending {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.mobile-coach-fixed .mobile-coach-name {
+  font-size: clamp(1.2rem, 5.5vw, 1.65rem);
+}
+
+.mobile-coach-fixed .mobile-player-name {
+  font-size: clamp(1.15rem, 5vw, 1.75rem);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-coach-fixed .mobile-bid-value {
+  font-size: clamp(2.25rem, 10vw, 3rem);
+}
+
+.mobile-coach-fixed .mobile-waiting {
+  padding: 1rem 0.5rem;
+}
+
+.mobile-viewport-lock .offline-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 120;
+}
+
+.mobile-viewport-lock .offline-banner ~ .mobile-coach-fixed {
+  padding-top: calc(max(0.75rem, env(safe-area-inset-top)) + 2.35rem);
 }
 
 .mobile-coach-header {
@@ -2262,6 +2419,7 @@ html:-webkit-full-screen .app {
   box-shadow: var(--shadow-3d), var(--shadow-glow);
   animation: fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
   transform-style: preserve-3d;
+  min-height: 0;
 }
 
 .mobile-player-label {

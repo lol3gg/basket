@@ -20,6 +20,7 @@ import {
 } from './asta-setup.js';
 import { useAuctionBeep, useBidSound, usePlayerStartSound, useCoachJoinAlert, playBidFeedback, URGENT_TIMER_SECONDS } from './useAuctionBeep.js';
 import { FullscreenToggle } from './useFullscreen.jsx';
+import { useMobileViewportLock } from './useMobileViewportLock.js';
 import { buildCoachRankings, exportAstaPdf } from './exportAstaPdf.js';
 
 const ROSTER_SLOTS = 5;
@@ -414,8 +415,10 @@ export function CoachEntryScreen({ defaultStanza = '', onJoin }) {
 
   const canSubmit = stanza.trim() && name.trim();
 
+  useMobileViewportLock();
+
   return (
-    <div className="app mobile-coach">
+    <div className="app mobile-coach mobile-coach-fixed">
       <p className="mobile-app-brand mobile-app-brand-center">{APP_TITLE}</p>
       <div className="mobile-coach-header">
         <h2 className="mobile-coach-title">Entra in asta</h2>
@@ -605,8 +608,10 @@ export function EntryScreen({ defaultStanza = '', onJoin }) {
 }
 
 export function CoachJoinPending({ name, error, hint, onBack, onRetry }) {
+  useMobileViewportLock();
+
   return (
-    <div className="app mobile-coach">
+    <div className="app mobile-coach mobile-coach-fixed">
       <p className="mobile-app-brand mobile-app-brand-center">{APP_TITLE}</p>
       <div className="mobile-join-pending">
         {!error && <span className="mobile-join-spinner" aria-hidden="true" />}
@@ -650,6 +655,8 @@ export function CoachMobileUI({
   bidError,
   onBid,
 }) {
+  useMobileViewportLock();
+
   const myCoach = coaches.find((c) => c.id === coachId);
   const myColor = getCoachColor(coachId);
   const isLive = phase === 'live' && isRunning;
@@ -706,7 +713,7 @@ export function CoachMobileUI({
     : null;
 
   return (
-    <div className="app mobile-coach">
+    <div className="app mobile-coach mobile-coach-fixed">
       <header className="mobile-coach-header">
         <p className="mobile-app-brand">{APP_TITLE}</p>
         <div className="mobile-coach-top">
@@ -982,7 +989,7 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '' }) {
   };
 
   return (
-    <div className="app dash">
+    <div className="app dash setup-screen">
       <ArenaHeader
         meta={<span className="pill">Configurazione torneo</span>}
         onChangeCoach={onClose}

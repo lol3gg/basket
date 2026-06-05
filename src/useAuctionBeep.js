@@ -96,6 +96,13 @@ function runWithAudio(ctx, fn) {
   }
 }
 
+function vibrateTimerCountdown(t) {
+  if (!navigator.vibrate) return;
+  if (t === 5) navigator.vibrate([200, 100, 200]);
+  if (t <= 3 && t > 0) navigator.vibrate(300);
+  if (t === 0) navigator.vibrate([500, 100, 500, 100, 500]);
+}
+
 /** Beep ogni secondo negli ultimi 5s di asta live (tutti i client). */
 export function useAuctionBeep({ timer, phase, isRunning, currentPlayerId }) {
   const lastTickRef = useRef(null);
@@ -114,8 +121,12 @@ export function useAuctionBeep({ timer, phase, isRunning, currentPlayerId }) {
       return;
     }
 
-    if (timer <= 0 || lastTickRef.current === timer) return;
+    if (timer < 0 || lastTickRef.current === timer) return;
     lastTickRef.current = timer;
+
+    vibrateTimerCountdown(timer);
+
+    if (timer === 0) return;
 
     const ctx = getAudioContext(ctxRef);
     if (!ctx) return;

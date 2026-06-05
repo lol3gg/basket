@@ -1,30 +1,35 @@
 # Asta Torneo Basket
 
-App per asta fantabasket di quartiere — banditore su PC/tablet, allenatori su cellulare.
+App per asta fantabasket — banditore su PC/tablet, allenatori su cellulare, sync realtime con Ably.
 
-## Online
+## Online (Vercel)
 
-Dopo il deploy su GitHub Pages l'app è disponibile su:
+Il codice è su [github.com/lol3gg/basket](https://github.com/lol3gg/basket).  
+L'hosting è su **Vercel** (non GitHub Pages — il repo è solo il deposito del codice).
 
-**https://lol3gg.github.io/basket/**
+### Deploy su Vercel (prima volta)
 
-### Prima pubblicazione (una tantum)
+1. Vai su [vercel.com](https://vercel.com) → **Add New Project** → importa **lol3gg/basket**
+2. Framework: **Vite** (auto-rilevato)
+3. **Environment Variables** → aggiungi:
+   - `VITE_ABLY_KEY` = la tua chiave Ably ([ably.com](https://ably.com) → API Keys)
+4. **Deploy**
 
-1. Su GitHub → repo **basket** → **Settings** → **Pages** → Source: **GitHub Actions**
-2. **Settings** → **Secrets and variables** → **Actions** → New secret:
-   - Nome: `VITE_ABLY_KEY`
-   - Valore: la tua chiave Ably (da [ably.com](https://ably.com))
-3. Ogni push su `main` ridistribuisce l'app automaticamente
+Ogni push su `main` ridistribuisce l'app in automatico.
 
-## Banditore
+In alternativa da terminale (dopo `npx vercel login`):
 
-- Apri l'app dal PC (non dal cellulare)
-- Inserisci **codice stanza** e **password banditore**
-- La password non va condivisa con gli allenatori — solo il codice stanza o i link personali
+```powershell
+.\deploy-vercel.ps1
+```
 
-## Allenatori
+### Banditore
 
-Entrano dal link personale generato in Setup → **Condividi link**, oppure con codice stanza + nome.
+- Apri l'URL Vercel **dal PC** (non dal cellulare)
+- Codice stanza + password banditore (`carletti`)
+- Setup → nomi allenatori → **Condividi tutti** su WhatsApp
+
+Gli allenatori ricevono il link personale; la password banditore non va condivisa.
 
 ## Sviluppo locale
 
@@ -35,4 +40,4 @@ cp .env.example .env
 npm run dev
 ```
 
-Senza chiave Ably l'app usa la modalità locale (un solo dispositivo).
+Senza `VITE_ABLY_KEY` l'app usa la modalità locale (un solo dispositivo).

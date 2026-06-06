@@ -1373,6 +1373,7 @@ export function AuctionUI({
   return (
     <div className="app dash">
       <AssignmentFlashOverlay flash={assignmentFlash} />
+      <div className="dash-auction-viewport">
       <ArenaHeader
         meta={(
           <>
@@ -1589,8 +1590,9 @@ export function AuctionUI({
           </aside>
         )}
       </div>
+      </div>
 
-      <section className="dash-panel tabs-panel">
+      <section className="dash-panel tabs-panel dash-tabs-below">
         <div className="tabs-panel-head">
           <TabBar active={activeTab} onChange={setActiveTab} />
           {activeTab === 'rosters' && (

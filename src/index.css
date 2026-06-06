@@ -196,8 +196,28 @@ body::after {
   justify-content: center;
 }
 
+.dash-auction-viewport .dash-tabs-bar {
+  flex-shrink: 0;
+  margin-top: auto;
+  padding: 0;
+  overflow: hidden;
+}
+
+.dash-auction-viewport .dash-tabs-bar .tabs-panel-head {
+  border-bottom: none;
+}
+
 .dash-tabs-below {
   scroll-margin-top: 0.75rem;
+  padding: 0;
+  overflow: hidden;
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  margin-top: -1px;
+}
+
+.tabs-content-panel .tab-content {
+  padding: 1.15rem;
 }
 
 /* ── Offline + room entry ── */

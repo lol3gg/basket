@@ -1590,23 +1590,25 @@ export function AuctionUI({
           </aside>
         )}
       </div>
+
+        <div className="dash-panel dash-tabs-bar">
+          <div className="tabs-panel-head">
+            <TabBar active={activeTab} onChange={setActiveTab} />
+            {activeTab === 'rosters' && (
+              <button
+                type="button"
+                className="btn-cta btn-export-rosters"
+                onClick={handleExportRosters}
+                disabled={joinedCoaches.length === 0}
+              >
+                Scarica PDF rose
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
-      <section className="dash-panel tabs-panel dash-tabs-below">
-        <div className="tabs-panel-head">
-          <TabBar active={activeTab} onChange={setActiveTab} />
-          {activeTab === 'rosters' && (
-            <button
-              type="button"
-              className="btn-cta btn-export-rosters"
-              onClick={handleExportRosters}
-              disabled={joinedCoaches.length === 0}
-            >
-              Scarica PDF rose
-            </button>
-          )}
-        </div>
-
+      <section className="dash-panel tabs-content-panel dash-tabs-below">
         {activeTab === 'overview' && (
           <div className="tab-content overview-grid">
             <div className="overview-block">

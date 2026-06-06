@@ -170,7 +170,7 @@ function announcePlayerName(name) {
   const trimmed = (name || '').trim();
   if (!trimmed || !('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
-  const msg = new SpeechSynthesisUtterance(trimmed);
+  const msg = new SpeechSynthesisUtterance(`Iniziata nuova asta per ${trimmed}`);
   msg.lang = 'it-IT';
   msg.pitch = 1.1;
   msg.rate = 0.9;

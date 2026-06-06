@@ -39,6 +39,7 @@ import {
   addSetupPlayer,
   createJoinRequestId,
   isMobileDevice,
+  getCoachDisplayName,
 } from './asta-setup.js';
 import { buildRestartPlayerState, disconnectCoachFromState } from './asta-logic.js';
 import { isAuctionComplete } from './exportAstaPdf.js';
@@ -705,6 +706,74 @@ function AstaTorneoAbly() {
     setActionError('');
   };
 
+  const handleStartSinglePlayer = useCallback((playerId) => {
+    if (!isAuctioneer) return;
+    const state = gameStateRef.current;
+    if (state.phase === 'live') return;
+    const player = state.players.find((p) => p.id === playerId);
+    if (!player || player.status !== 'available') return;
+    let next = {
+      ...state,
+      currentPlayer: player,
+      currentBid: 0,
+      currentBidder: null,
+      phase: 'live',
+      isRunning: true,
+      timer: AUCTION_SECONDS,
+    };
+    next = appendLog(next, `Asta avviata: ${player.name}`);
+    publishState(next);
+    setActionError('');
+  }, [isAuctioneer, publishState]);
+
+  const handleReassignPlayer = useCallback((playerId, newCoachId) => {
+    if (!isAuctioneer) return;
+    const state = gameStateRef.current;
+    const player = state.players.find((p) => p.id === playerId);
+    if (!player || player.status !== 'assigned' || !player.coachId) return;
+
+    const oldCoachId = player.coachId;
+    if (oldCoachId === newCoachId) return;
+
+    const oldCoach = state.coaches.find((c) => c.id === oldCoachId);
+    const newCoach = state.coaches.find((c) => c.id === newCoachId);
+    if (!oldCoach || !newCoach) return;
+
+    const rosterEntry = oldCoach.players.find((rp) => rp.id === playerId);
+    const price = rosterEntry?.price ?? 0;
+    if (newCoach.budget < price) {
+      setActionError('Budget insufficiente per riassegnare questo giocatore.');
+      return;
+    }
+
+    const updatedPlayers = state.players.map((p) => (
+      p.id === playerId ? { ...p, coachId: newCoachId } : p
+    ));
+    const updatedCoaches = state.coaches.map((c) => {
+      if (c.id === oldCoachId) {
+        return {
+          ...c,
+          budget: c.budget + price,
+          players: c.players.filter((rp) => rp.id !== playerId),
+        };
+      }
+      if (c.id === newCoachId) {
+        return {
+          ...c,
+          budget: c.budget - price,
+          players: [...c.players, { id: player.id, name: player.name, role: player.role, price }],
+        };
+      }
+      return c;
+    });
+
+    publishState(appendLog(
+      { ...state, players: updatedPlayers, coaches: updatedCoaches },
+      `${player.name} riassegnato da ${getCoachDisplayName(oldCoach)} a ${getCoachDisplayName(newCoach)} (${price} cr.)`,
+    ));
+    setActionError('');
+  }, [isAuctioneer, publishState]);
+
   const handleStopAuction = () => {
     if (!isAuctioneer) return;
     publishState(appendLog({
@@ -869,6 +938,8 @@ function AstaTorneoAbly() {
         onUpdatePlayer={handleUpdatePlayer}
         onRemovePlayer={handleRemovePlayer}
         onRemoveCoach={handleRemoveCoach}
+        onStartSinglePlayer={handleStartSinglePlayer}
+        onReassignPlayer={handleReassignPlayer}
       />
     </>
   );

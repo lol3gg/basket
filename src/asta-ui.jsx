@@ -1228,10 +1228,14 @@ export function AuctionUI({
   onUpdatePlayer,
   onRemovePlayer,
   onRemoveCoach,
+  onStartSinglePlayer,
+  onReassignPlayer,
 }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
   const [joinBanner, setJoinBanner] = useState(null);
+  const [reassigningId, setReassigningId] = useState(null);
+  const [reassignCoachId, setReassignCoachId] = useState('');
 
   const isAuctioneer = isBanditoreRole(coachId);
   const joinedCoaches = getJoinedCoaches(coaches);
@@ -1257,6 +1261,27 @@ export function AuctionUI({
 
   const handleExportRosters = () => {
     exportRostersPdf({ stanzaCode, coaches });
+  };
+
+  const reassignableCoaches = coaches.filter((c) => c.id !== BANDITORE_COACH_ID);
+
+  const openReassign = (playerId) => {
+    setReassigningId(playerId);
+    const first = reassignableCoaches[0];
+    setReassignCoachId(first ? String(first.id) : '');
+  };
+
+  const confirmReassign = (playerId) => {
+    const coachId = Number(reassignCoachId);
+    if (!coachId) return;
+    onReassignPlayer?.(playerId, coachId);
+    setReassigningId(null);
+    setReassignCoachId('');
+  };
+
+  const cancelReassign = () => {
+    setReassigningId(null);
+    setReassignCoachId('');
   };
 
   useAuctionBeep({
@@ -1707,19 +1732,73 @@ export function AuctionUI({
                       </td>
                       <td>{owner ? getCoachDisplayName(owner) : '—'}</td>
                       {isAuctioneer && (
-                        <td>
-                          {editable && (
-                            <button
-                              type="button"
-                              className="btn-setup-remove"
-                              onClick={() => onRemovePlayer?.(p.id)}
-                              disabled={players.length <= 1}
-                              title="Rimuovi giocatore"
-                              aria-label={`Rimuovi ${p.name}`}
-                            >
-                              ×
-                            </button>
-                          )}
+                        <td className="players-table-actions">
+                          <div className="players-table-actions-inner">
+                            {p.status === 'available' && (
+                              <button
+                                type="button"
+                                className="btn-secondary btn-table-action"
+                                disabled={isLive || p.id === currentPlayer?.id}
+                                onClick={() => onStartSinglePlayer?.(p.id)}
+                              >
+                                Metti in asta
+                              </button>
+                            )}
+                            {p.status === 'assigned' && (
+                              reassigningId === p.id ? (
+                                <div className="reassign-inline">
+                                  <select
+                                    className="players-table-select reassign-select"
+                                    value={reassignCoachId}
+                                    onChange={(e) => setReassignCoachId(e.target.value)}
+                                  >
+                                    {reassignableCoaches.map((c) => (
+                                      <option key={c.id} value={c.id}>
+                                        {getCoachDisplayName(c)}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    className="btn-cta btn-reassign-confirm"
+                                    onClick={() => confirmReassign(p.id)}
+                                    disabled={!reassignCoachId}
+                                    aria-label="Conferma riassegnazione"
+                                  >
+                                    ✓
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-ghost btn-reassign-cancel"
+                                    onClick={cancelReassign}
+                                    aria-label="Annulla riassegnazione"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="btn-ghost btn-ghost-sm"
+                                  onClick={() => openReassign(p.id)}
+                                >
+                                  Riassegna
+                                </button>
+                              )
+                            )}
+                            {editable && (
+                              <button
+                                type="button"
+                                className="btn-setup-remove"
+                                onClick={() => onRemovePlayer?.(p.id)}
+                                disabled={players.length <= 1}
+                                title="Rimuovi giocatore"
+                                aria-label={`Rimuovi ${p.name}`}
+                              >
+                                ×
+                              </button>
+                            )}
+                          </div>
                         </td>
                       )}
                     </tr>

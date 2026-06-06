@@ -247,12 +247,7 @@ body::after {
 
 /* ── Header ── */
 .dash-header {
-  position: sticky;
-  top: 0;
-  z-index: 40;
   margin-bottom: 1.25rem;
-  padding: 0.75rem 0 1rem;
-  background: linear-gradient(to bottom, var(--bg-main) 70%, transparent);
 }
 
 .dash-brand,
@@ -1611,6 +1606,42 @@ body::after {
   justify-content: space-between;
   gap: 0.5rem;
   margin-bottom: 0.75rem;
+}
+
+.players-table-actions {
+  min-width: 11rem;
+}
+
+.players-table-actions-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.btn-table-action {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.reassign-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.reassign-select {
+  min-width: 7rem;
+  max-width: 10rem;
+}
+
+.btn-reassign-confirm,
+.btn-reassign-cancel {
+  padding: 0.25rem 0.45rem;
+  min-width: 1.75rem;
+  line-height: 1;
 }
 
 .players-table-input,

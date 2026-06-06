@@ -1313,20 +1313,20 @@ export function AuctionUI({
       <button type="button" className="btn-cta" onClick={onOpenSetup}>Setup</button>
       {isPaused ? (
         <button type="button" className="btn-cta" onClick={onStartAuction}>Riprendi</button>
-      ) : (
+      ) : !isSettled && (
         <button
           type="button"
           className="btn-cta"
           onClick={onStartAuction}
-          disabled={phase === 'live' || phase === 'settled'}
+          disabled={phase === 'live'}
         >
           Avvia
         </button>
       )}
       <button type="button" className="btn-secondary" onClick={onStopAuction} disabled={!isLive}>Pausa</button>
-      <button type="button" className="btn-secondary" onClick={onNextPlayer}>Salta</button>
-      <button type="button" className="btn-secondary" onClick={onManualAssign}>Assegna</button>
-      <button type="button" className="btn-secondary" onClick={onLoadDemo}>Demo</button>
+      <button type="button" className="btn-secondary" onClick={onNextPlayer} disabled={isSettled}>Salta</button>
+      <button type="button" className="btn-secondary" onClick={onManualAssign} disabled={!isLive || !currentPlayer}>Assegna</button>
+      <button type="button" className="btn-secondary" onClick={onLoadDemo} disabled={isLive}>Demo</button>
       <button type="button" className="btn-secondary" onClick={onInitSetup}>Reset</button>
       {isSettled && (
         <button type="button" className="btn-cta btn-confirm-toolbar" onClick={onConfirmNext} disabled={!canConfirmNext}>

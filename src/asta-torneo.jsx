@@ -29,8 +29,8 @@ import {
   loadSetup,
   mergeSetupIntoPlayers,
   getDemoSetup,
-  getEmptySetup,
   RESET_ASTA_CONFIRM,
+  INITIAL_BUDGET,
   BANDITORE_COACH_ID,
   BANDITORE_KEY,
   isBanditoreRole,
@@ -41,7 +41,7 @@ import {
   isMobileDevice,
   getCoachDisplayName,
 } from './asta-setup.js';
-import { buildRestartPlayerState, disconnectCoachFromState } from './asta-logic.js';
+import { buildRestartPlayerState, buildResetAuctionState, disconnectCoachFromState } from './asta-logic.js';
 import { isAuctionComplete } from './exportAstaPdf.js';
 import { canAffordBid, maybeApplyForcedAssignments } from './asta-budget.js';
 import {
@@ -82,7 +82,6 @@ function buildInitialState() {
 const COACH_STORAGE_KEY = 'asta_coach_id';
 const STANZA_STORAGE_KEY = 'asta_stanza_code';
 const BANDITORE_SESSION_KEY = 'asta_banditore_verified';
-const INITIAL_BUDGET = 500;
 const BID_INCREMENT = 1;
 
 function sanitizeGameState(raw) {
@@ -600,10 +599,9 @@ function AstaTorneoAbly() {
   const handleInitSetup = () => {
     if (!isAuctioneer) return;
     if (!window.confirm(RESET_ASTA_CONFIRM)) return;
-    saveSetup(getEmptySetup());
     publishState({
-      ...buildInitialState(),
-      log: [{ text: 'Asta resettata — tutto cancellato.', timestamp: Date.now() }],
+      ...buildResetAuctionState(gameStateRef.current),
+      log: [{ text: 'Asta resettata. Giocatori mantenuti.', timestamp: Date.now() }],
     });
     setActionError('');
   };

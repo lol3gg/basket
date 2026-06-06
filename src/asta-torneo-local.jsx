@@ -6,7 +6,6 @@ import {
   saveSetup,
   mergeSetupIntoPlayers,
   getDemoSetup,
-  getEmptySetup,
   RESET_ASTA_CONFIRM,
   BANDITORE_COACH_ID,
   BANDITORE_KEY,
@@ -17,7 +16,7 @@ import {
   isMobileDevice,
   getCoachDisplayName,
 } from './asta-setup.js';
-import { buildRestartPlayerState, removeCoachFromState } from './asta-logic.js';
+import { buildRestartPlayerState, buildResetAuctionState, removeCoachFromState } from './asta-logic.js';
 import { isAuctionComplete } from './exportAstaPdf.js';
 import { canAffordBid, maybeApplyForcedAssignments } from './asta-budget.js';
 import { AuctionUI, BanditoreEntryScreen, CoachEntryScreen, CoachMobileUI, FinalResultsScreen, SetupScreen } from './asta-ui.jsx';
@@ -225,22 +224,18 @@ export function AstaTorneoLocal() {
     pushLog(`Asta riavviata: ${next.currentPlayer.name}`);
   };
 
-  const reloadFromSetup = () => {
-    setCoaches([]);
-    setPlayers(buildInitialPlayers());
-  };
-
   const handleInitSetup = () => {
     if (!window.confirm(RESET_ASTA_CONFIRM)) return;
-    saveSetup(getEmptySetup());
-    reloadFromSetup();
-    setCurrentPlayer(null);
-    setCurrentBid(0);
-    setCurrentBidder(null);
-    setTimer(AUCTION_SECONDS);
-    setPhase('idle');
-    setIsRunning(false);
-    setLog([{ text: 'Asta resettata — tutto cancellato.', timestamp: Date.now() }]);
+    const next = buildResetAuctionState(stateRef.current);
+    setCurrentPlayer(next.currentPlayer);
+    setCurrentBid(next.currentBid);
+    setCurrentBidder(next.currentBidder);
+    setTimer(next.timer);
+    setPhase(next.phase);
+    setIsRunning(next.isRunning);
+    setCoaches(next.coaches);
+    setPlayers(next.players);
+    setLog([{ text: 'Asta resettata. Giocatori mantenuti.', timestamp: Date.now() }]);
     setActionError('');
   };
 

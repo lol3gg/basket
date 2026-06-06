@@ -1,7 +1,12 @@
-import { AUCTION_SECONDS } from './asta-setup.js';
+import {
+  AUCTION_SECONDS,
+  INITIAL_BUDGET,
+  loadSetup,
+  mergeSetupIntoPlayers,
+} from './asta-setup.js';
 
 /** Disconnette un allenatore (slot fisso) e ripristina i suoi giocatori. */
-export function disconnectCoachFromState(state, coachId, budget = 500) {
+export function disconnectCoachFromState(state, coachId, budget = INITIAL_BUDGET) {
   const coach = state.coaches.find((c) => c.id === coachId);
   if (!coach) return state;
 
@@ -47,6 +52,38 @@ export function removeCoachFromState(state, coachId) {
     players,
     currentBidder: wasLeading ? null : state.currentBidder,
     currentBid: wasLeading ? 0 : state.currentBid,
+  };
+}
+
+/** Resetta solo l'asta: mantiene giocatori e setup, azzera assegnazioni e connessioni. */
+export function buildResetAuctionState(state) {
+  const setup = loadSetup();
+  const setupPlayers = setup.players.length > 0
+    ? setup.players
+    : state.players.map(({ id, name, role, team, photo }) => ({
+      id,
+      name,
+      role,
+      team: team || '—',
+      ...(photo ? { photo } : {}),
+    }));
+
+  const players = mergeSetupIntoPlayers(state.players, setupPlayers).map((p) => ({
+    ...p,
+    status: 'available',
+    coachId: null,
+  }));
+
+  return {
+    ...state,
+    currentPlayer: null,
+    currentBid: 0,
+    currentBidder: null,
+    timer: AUCTION_SECONDS,
+    phase: 'idle',
+    isRunning: false,
+    coaches: [],
+    players,
   };
 }
 

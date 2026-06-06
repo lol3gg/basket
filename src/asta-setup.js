@@ -1,4 +1,4 @@
-export const INITIAL_BUDGET = 500;
+export const INITIAL_BUDGET = 300;
 export const AUCTION_SECONDS = 15;
 export const CLOSE_SECONDS = 6;
 export const SETUP_STORAGE_KEY = 'asta_setup_v2';
@@ -124,13 +124,12 @@ export function getEmptySetup() {
 }
 
 export const RESET_ASTA_CONFIRM =
-  'Reset completo dell\'asta.\n\n'
-  + 'Verrà cancellato tutto:\n'
+  'Reset asta.\n\n'
+  + 'Verrà azzerato:\n'
   + '• Asta in corso e timer\n'
   + '• Allenatori connessi\n'
-  + '• Assegnazioni e rose\n'
-  + '• Lista giocatori\n\n'
-  + 'Dovrai riconfigurare il torneo dal Setup.\n\n'
+  + '• Assegnazioni e rose\n\n'
+  + 'I giocatori configurati restano.\n\n'
   + 'Confermi il reset?';
 
 export function loadSetup() {

@@ -33,6 +33,14 @@ export function canAffordBid(coach, amount) {
   return amount <= getMaxBidAmount(coach);
 }
 
+export function buildMobileBidOptions(currentBid) {
+  return [
+    { label: '+1', amount: Math.max(currentBid + 1, 1) },
+    { label: '+5', amount: currentBid + 5 },
+    { label: '+10', amount: currentBid + 10 },
+  ];
+}
+
 export function buildBidOptions(currentBid, coach) {
   if (!coach) return { options: [], maxBid: 0, inReserve: false };
 

@@ -28,6 +28,7 @@ import { getPlayerInitials, getPlayerAvatarColor, readPlayerPhotoFile } from './
 import {
   ROSTER_SLOTS,
   buildBidOptions,
+  buildMobileBidOptions,
   getMaxBidAmount,
   isBudgetMinimum,
   isInBudgetReserve,
@@ -771,7 +772,7 @@ export function CoachMobileUI({
     maxTimer: AUCTION_SECONDS,
   });
 
-  const bidAmounts = buildBidOptions(currentBid, myCoach).options;
+  const bidAmounts = buildMobileBidOptions(currentBid);
   const maxBid = getMaxBidAmount(myCoach);
   const inReserve = isInBudgetReserve(myCoach);
 
@@ -876,7 +877,7 @@ export function CoachMobileUI({
               const disabled = amount > maxBid;
               return (
                 <button
-                  key={`${label}-${amount}`}
+                  key={label}
                   type="button"
                   className="mobile-bid-btn"
                   style={{ '--coach-color': disabled ? undefined : myColor }}
@@ -887,7 +888,6 @@ export function CoachMobileUI({
                   }}
                 >
                   <span className="mobile-bid-btn-label">{label}</span>
-                  <span className="mobile-bid-btn-amount">{amount} cr.</span>
                 </button>
               );
             })}
@@ -1305,24 +1305,28 @@ export function AuctionUI({
 
   const auctioneerActions = isAuctioneer && (
     <>
-      {isSettled ? (
-        <button type="button" className="btn-cta" onClick={onConfirmNext} disabled={!canConfirmNext}>
+      <button type="button" className="btn-cta" onClick={onOpenSetup}>Setup</button>
+      {isPaused ? (
+        <button type="button" className="btn-cta" onClick={onStartAuction}>Riprendi</button>
+      ) : (
+        <button
+          type="button"
+          className="btn-cta"
+          onClick={onStartAuction}
+          disabled={phase === 'live' || phase === 'settled'}
+        >
+          Avvia
+        </button>
+      )}
+      <button type="button" className="btn-secondary" onClick={onStopAuction} disabled={!isLive}>Pausa</button>
+      <button type="button" className="btn-secondary" onClick={onNextPlayer}>Salta</button>
+      <button type="button" className="btn-secondary" onClick={onManualAssign}>Assegna</button>
+      <button type="button" className="btn-secondary" onClick={onLoadDemo}>Demo</button>
+      <button type="button" className="btn-secondary" onClick={onInitSetup}>Reset</button>
+      {isSettled && (
+        <button type="button" className="btn-cta btn-confirm-toolbar" onClick={onConfirmNext} disabled={!canConfirmNext}>
           Conferma prossimo
         </button>
-      ) : (
-        <>
-          <button type="button" className="btn-cta" onClick={onOpenSetup}>Setup</button>
-          {isPaused ? (
-            <button type="button" className="btn-cta" onClick={onStartAuction}>Riprendi</button>
-          ) : (
-            <button type="button" className="btn-cta" onClick={onStartAuction} disabled={isRunning || isLive}>Avvia</button>
-          )}
-          <button type="button" className="btn-secondary" onClick={onStopAuction} disabled={!isLive}>Pausa</button>
-          <button type="button" className="btn-secondary" onClick={onNextPlayer}>Salta</button>
-          <button type="button" className="btn-secondary" onClick={onManualAssign}>Assegna</button>
-          <button type="button" className="btn-secondary" onClick={onLoadDemo}>Demo</button>
-          <button type="button" className="btn-secondary" onClick={onInitSetup}>Reset</button>
-        </>
       )}
     </>
   );

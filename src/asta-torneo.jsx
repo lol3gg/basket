@@ -785,6 +785,7 @@ function AstaTorneoAbly() {
         onSave={handleSetupSave}
         onClose={() => setShowSetup(false)}
         stanzaCode={stanzaCode}
+        gamePlayers={players}
       />
     );
   }

@@ -884,8 +884,20 @@ body::after {
   padding: 1.75rem 1rem 1.25rem;
   min-height: 130px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 0.65rem;
+}
+
+.jersey-avatar-wrap {
+  position: relative;
+  z-index: 1;
+}
+
+.jersey-body .jersey-name {
+  position: relative;
+  z-index: 1;
 }
 
 .jersey-watermark {
@@ -1796,7 +1808,7 @@ body::after {
 }
 
 .setup-screen .setup-list.players li {
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
 }
 
 .setup-screen .setup-list input {
@@ -2096,7 +2108,121 @@ body::after {
 
 .setup-list.players li {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.setup-photo-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 3.25rem;
+}
+
+.setup-photo-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.setup-photo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.setup-photo-btn:hover {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+.setup-photo-clear {
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.setup-photo-clear:hover {
+  color: var(--accent);
+}
+
+.player-avatar {
+  display: block;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid rgba(212, 175, 55, 0.45);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+}
+
+.player-avatar-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.player-avatar-xs {
+  width: 2rem;
+  height: 2rem;
+  font-size: 0.65rem;
+}
+
+.player-avatar-sm {
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 0.75rem;
+}
+
+.player-avatar-md {
+  width: 3.25rem;
+  height: 3.25rem;
+  font-size: 0.9rem;
+}
+
+.player-avatar-lg {
+  width: 4.5rem;
+  height: 4.5rem;
+  font-size: 1.15rem;
+}
+
+.player-avatar-xl {
+  width: 5.5rem;
+  height: 5.5rem;
+  font-size: 1.35rem;
+  border-width: 3px;
+}
+
+.mobile-player-avatar {
+  display: flex;
+  justify-content: center;
+  margin: 0.35rem 0 0.5rem;
 }
 
 .btn-setup-remove {

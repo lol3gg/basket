@@ -12,6 +12,7 @@
     "ably": "^2.22.0",
     "firebase": "^11.6.0",
     "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

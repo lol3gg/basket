@@ -24,6 +24,7 @@ import { useMobileViewportLock } from './useMobileViewportLock.js';
 import { AssignmentFlashOverlay, useAssignmentFlash } from './useAssignmentFlash.jsx';
 import { BasketballIcon } from './BasketballDecor.jsx';
 import { buildCoachRankings, exportAstaPdf } from './exportAstaPdf.js';
+import { getPlayerInitials, getPlayerAvatarColor, readPlayerPhotoFile } from './playerPhoto.js';
 
 const ROSTER_SLOTS = 5;
 const APP_TITLE = 'Asta Torneo Basket';
@@ -100,6 +101,65 @@ export function TimerRing({ timer, max = 10, size = 'md' }) {
   );
 }
 
+export function PlayerAvatar({ player, size = 'md', className = '' }) {
+  const initials = getPlayerInitials(player?.name);
+  const bg = getPlayerAvatarColor(player?.id);
+  const cls = `player-avatar player-avatar-${size}${className ? ` ${className}` : ''}`;
+
+  if (player?.photo) {
+    return <img src={player.photo} alt="" className={cls} />;
+  }
+
+  return (
+    <span className={`${cls} player-avatar-initials`} style={{ background: bg }} aria-hidden="true">
+      {initials}
+    </span>
+  );
+}
+
+function SetupPhotoButton({ player, onPhoto, onRemove }) {
+  const inputId = `setup-photo-${player.id}`;
+
+  const handleChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const photo = await readPlayerPhotoFile(file);
+      onPhoto(photo);
+    } catch {
+      /* ignore invalid image */
+    }
+  };
+
+  return (
+    <div className="setup-photo-cell">
+      <PlayerAvatar player={player} size="xs" />
+      <input
+        id={inputId}
+        type="file"
+        accept="image/*"
+        className="setup-photo-input"
+        onChange={handleChange}
+      />
+      <label htmlFor={inputId} className="setup-photo-btn" title="Carica foto">
+        Foto
+      </label>
+      {player.photo && (
+        <button
+          type="button"
+          className="setup-photo-clear"
+          onClick={onRemove}
+          title="Rimuovi foto"
+          aria-label={`Rimuovi foto ${player.name}`}
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function JerseyCard({ player, currentBid, leadingCoachId, timer, phase, winnerName }) {
   if (!player) {
     return (
@@ -133,6 +193,9 @@ export function JerseyCard({ player, currentBid, leadingCoachId, timer, phase, w
         <span className="jersey-badge team">{player.team || '—'}</span>
       </div>
       <div className="jersey-body">
+        <div className="jersey-avatar-wrap">
+          <PlayerAvatar player={player} size="xl" />
+        </div>
         <span className="jersey-watermark">{player.id}</span>
         <div className="jersey-name">
           <span>{line1.toUpperCase()}</span>
@@ -256,7 +319,7 @@ export function FinalResultsScreen({
 
       <section className="final-results-actions">
         <button type="button" className="btn-cta" onClick={handleExport}>
-          Esporta PDF
+          Scarica PDF
         </button>
         <button type="button" className="btn-secondary" onClick={onClose}>
           Torna alla dashboard
@@ -754,6 +817,9 @@ export function CoachMobileUI({
         {currentPlayer ? (
           <>
             <p className="mobile-player-label">{isSettled ? 'Asta chiusa' : 'In asta'}</p>
+            <div className="mobile-player-avatar">
+              <PlayerAvatar player={currentPlayer} size="lg" />
+            </div>
             <h2 className="mobile-player-name">{currentPlayer.name}</h2>
             {isSettled && settledMessage && (
               <div
@@ -962,14 +1028,41 @@ function ShareLinksSection({ stanzaCode }) {
   );
 }
 
-export function SetupScreen({ onSave, onClose, stanzaCode = '' }) {
-  const [draft, setDraft] = useState(() => loadSetup());
+export function SetupScreen({ onSave, onClose, stanzaCode = '', gamePlayers = [] }) {
+  const [draft, setDraft] = useState(() => {
+    const setup = loadSetup();
+    return {
+      ...setup,
+      players: setup.players.map((p) => {
+        const gp = gamePlayers.find((g) => g.id === p.id);
+        return gp?.photo ? { ...p, photo: gp.photo } : p;
+      }),
+    };
+  });
   const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
 
   const updatePlayer = (id, field, value) => {
     setDraft((d) => ({
       ...d,
       players: d.players.map((p) => (p.id === id ? { ...p, [field]: value } : p)),
+    }));
+  };
+
+  const setPlayerPhoto = (id, photo) => {
+    setDraft((d) => ({
+      ...d,
+      players: d.players.map((p) => (p.id === id ? { ...p, photo } : p)),
+    }));
+  };
+
+  const clearPlayerPhoto = (id) => {
+    setDraft((d) => ({
+      ...d,
+      players: d.players.map((p) => {
+        if (p.id !== id) return p;
+        const { photo, ...rest } = p;
+        return rest;
+      }),
     }));
   };
 
@@ -1042,6 +1135,11 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '' }) {
             {draft.players.map((p) => (
               <li key={p.id}>
                 <span className="player-id">#{p.id}</span>
+                <SetupPhotoButton
+                  player={p}
+                  onPhoto={(photo) => setPlayerPhoto(p.id, photo)}
+                  onRemove={() => clearPlayerPhoto(p.id)}
+                />
                 <input
                   type="text"
                   value={p.name}

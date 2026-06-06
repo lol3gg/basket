@@ -434,6 +434,7 @@ export function AstaTorneoLocal() {
         onSave={handleSetupSave}
         onClose={() => setShowSetup(false)}
         stanzaCode={stanzaCode || LOCAL_STANZA}
+        gamePlayers={players}
       />
     );
   }

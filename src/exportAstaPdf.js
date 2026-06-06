@@ -1,9 +1,11 @@
 import { jsPDF } from 'jspdf';
+import { autoTable } from 'jspdf-autotable';
 import { INITIAL_BUDGET, BANDITORE_COACH_ID, getCoachDisplayName } from './asta-setup.js';
 
-const PAGE_BOTTOM = 280;
+const PDF_ORANGE = [232, 82, 42];
+const PDF_DARK = [18, 18, 18];
+const PDF_MUTED = [120, 120, 120];
 const MARGIN = 14;
-const LINE = 6;
 
 function formatDateTime(ts) {
   return new Date(ts).toLocaleString('it-IT', {
@@ -13,6 +15,14 @@ function formatDateTime(ts) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function formatFileDate(ts) {
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function getResultCoaches(coaches) {
@@ -25,24 +35,6 @@ function getResultCoaches(coaches) {
         : 0;
       return { ...c, spent, avgRating };
     });
-}
-
-function ensureSpace(doc, y, needed) {
-  if (y + needed > PAGE_BOTTOM) {
-    doc.addPage();
-    return MARGIN + 4;
-  }
-  return y;
-}
-
-function writeLines(doc, text, x, y, maxWidth) {
-  const lines = doc.splitTextToSize(text, maxWidth);
-  lines.forEach((line) => {
-    y = ensureSpace(doc, y, LINE);
-    doc.text(line, x, y);
-    y += LINE;
-  });
-  return y;
 }
 
 export function isAuctionComplete(players, phase, isRunning) {
@@ -59,62 +51,131 @@ export function buildCoachRankings(coaches) {
 
 export function exportAstaPdf({ stanzaCode, coaches, log = [] }) {
   const doc = new jsPDF();
-  const width = doc.internal.pageSize.getWidth() - MARGIN * 2;
-  let y = MARGIN + 4;
-
-  const startTs = log[0]?.timestamp ?? Date.now();
+  const pageWidth = doc.internal.pageSize.getWidth();
   const endTs = log[log.length - 1]?.timestamp ?? Date.now();
+  const stanza = (stanzaCode || 'STANZA').trim().toUpperCase();
   const rankings = buildCoachRankings(coaches);
+  let y = MARGIN;
 
+  doc.setFillColor(...PDF_DARK);
+  doc.rect(0, 0, pageWidth, 36, 'F');
+  doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  y = writeLines(doc, `ASTA TORNEO BASKET - ${stanzaCode || 'STANZA'}`, MARGIN, y, width) + 4;
-
+  doc.setFontSize(14);
+  doc.text(`ASTA TORNEO BASKET — ${stanza}`, MARGIN, 16);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  y = writeLines(doc, `Inizio asta: ${formatDateTime(startTs)}`, MARGIN, y, width);
-  y = writeLines(doc, `Fine asta: ${formatDateTime(endTs)}`, MARGIN, y, width);
-  y += 6;
+  doc.text(formatDateTime(endTs), MARGIN, 26);
+  y = 46;
 
   rankings.forEach((coach) => {
-    y = ensureSpace(doc, y, LINE * 4);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    y = writeLines(doc, getCoachDisplayName(coach), MARGIN, y, width);
+    if (y > 250) {
+      doc.addPage();
+      y = MARGIN;
+    }
 
+    doc.setFillColor(...PDF_ORANGE);
+    doc.rect(MARGIN, y - 5, pageWidth - MARGIN * 2, 10, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(getCoachDisplayName(coach), MARGIN + 2, y + 2);
+    y += 12;
+
+    doc.setTextColor(...PDF_DARK);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    y = writeLines(doc, `Budget rimasto: ${coach.budget} cr.  ·  Totale speso: ${coach.spent} cr.`, MARGIN, y, width);
-    y = writeLines(doc, `Rating medio: ${coach.avgRating.toFixed(1)} cr./giocatore`, MARGIN, y, width);
+    doc.text(`Budget rimasto: ${coach.budget} cr.`, MARGIN, y);
+    doc.text(`Totale speso: ${coach.spent} cr.`, MARGIN + 70, y);
+    y += 8;
 
-    if (coach.players.length === 0) {
-      y = writeLines(doc, 'Nessun giocatore acquistato.', MARGIN + 4, y, width - 4);
-    } else {
-      coach.players.forEach((p) => {
-        y = ensureSpace(doc, y, LINE);
-        doc.text(`• ${p.name}  (${p.role})  —  ${p.price} cr.`, MARGIN + 4, y);
-        y += LINE;
-      });
-    }
-    y += 4;
+    const rows = coach.players.length
+      ? coach.players.map((p) => [p.name, p.role, String(p.price)])
+      : [['—', '—', '0']];
+
+    autoTable(doc, {
+      startY: y,
+      head: [['Giocatore', 'Ruolo', 'Prezzo']],
+      body: rows,
+      theme: 'grid',
+      margin: { left: MARGIN, right: MARGIN },
+      headStyles: {
+        fillColor: PDF_ORANGE,
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 9,
+      },
+      bodyStyles: {
+        fontSize: 9,
+        textColor: PDF_DARK,
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245],
+      },
+      styles: {
+        cellPadding: 3,
+        lineColor: [220, 220, 220],
+        lineWidth: 0.2,
+      },
+    });
+
+    y = doc.lastAutoTable.finalY + 10;
   });
 
-  y = ensureSpace(doc, y, LINE * (rankings.length + 4));
+  if (y > 230) {
+    doc.addPage();
+    y = MARGIN;
+  }
+
+  doc.setFillColor(...PDF_DARK);
+  doc.rect(MARGIN, y - 4, pageWidth - MARGIN * 2, 10, 'F');
+  doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  y = writeLines(doc, 'Classifica finale per rating medio', MARGIN, y, width) + 2;
+  doc.setFontSize(11);
+  doc.text('Classifica per rating medio squadra', MARGIN + 2, y + 2);
+  y += 12;
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  rankings.forEach((coach, i) => {
-    y = ensureSpace(doc, y, LINE);
-    doc.text(
-      `${i + 1}. ${getCoachDisplayName(coach)} — ${coach.avgRating.toFixed(1)} cr./gioc. (${coach.players.length} gioc.)`,
-      MARGIN,
-      y,
-    );
-    y += LINE;
+  const rankRows = rankings.map((coach, i) => [
+    String(i + 1),
+    getCoachDisplayName(coach),
+    coach.avgRating.toFixed(1),
+    String(coach.players.length),
+    String(coach.spent),
+  ]);
+
+  autoTable(doc, {
+    startY: y,
+    head: [['#', 'Allenatore', 'Rating medio', 'Giocatori', 'Speso']],
+    body: rankRows.length ? rankRows : [['—', '—', '—', '—', '—']],
+    theme: 'grid',
+    margin: { left: MARGIN, right: MARGIN },
+    headStyles: {
+      fillColor: PDF_ORANGE,
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 9,
+    },
+    bodyStyles: {
+      fontSize: 9,
+      textColor: PDF_DARK,
+    },
+    alternateRowStyles: {
+      fillColor: [245, 245, 245],
+    },
+    styles: {
+      cellPadding: 3,
+      lineColor: [220, 220, 220],
+      lineWidth: 0.2,
+    },
   });
 
-  doc.save('asta-torneo.pdf');
+  doc.setTextColor(...PDF_MUTED);
+  doc.setFontSize(8);
+  doc.text(
+    'Rating medio = crediti medi spesi per giocatore acquistato',
+    MARGIN,
+    doc.internal.pageSize.getHeight() - 8,
+  );
+
+  doc.save(`asta-${stanza}-${formatFileDate(endTs)}.pdf`);
 }

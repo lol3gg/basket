@@ -106,8 +106,16 @@ export function getDemoSetup() {
   };
 }
 
+function stripPlayerPhoto(p) {
+  if (!p || typeof p !== 'object') return p;
+  const { photo, ...rest } = p;
+  return rest;
+}
+
 function normalizeSetup(parsed) {
-  const players = Array.isArray(parsed?.players) ? parsed.players : [];
+  const players = Array.isArray(parsed?.players)
+    ? parsed.players.map(stripPlayerPhoto)
+    : [];
   return { players, coaches: [] };
 }
 
@@ -188,6 +196,7 @@ export function setupPlayerToGamePlayer(p) {
     team: p.team || '—',
     status: 'available',
     coachId: null,
+    ...(p.photo ? { photo: p.photo } : {}),
   };
 }
 
@@ -225,7 +234,13 @@ export function mergeSetupIntoPlayers(existingPlayers, setupPlayers) {
   return setupPlayers.map((sp) => {
     const prev = existingPlayers.find((p) => p.id === sp.id);
     if (prev) {
-      return { ...prev, name: sp.name, role: sp.role, team: sp.team || '—' };
+      return {
+        ...prev,
+        name: sp.name,
+        role: sp.role,
+        team: sp.team || '—',
+        photo: sp.photo ?? prev.photo,
+      };
     }
     return {
       id: sp.id,
@@ -234,6 +249,7 @@ export function mergeSetupIntoPlayers(existingPlayers, setupPlayers) {
       team: sp.team || '—',
       status: 'available',
       coachId: null,
+      ...(sp.photo ? { photo: sp.photo } : {}),
     };
   });
 }

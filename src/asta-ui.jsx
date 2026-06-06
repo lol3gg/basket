@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   getCoachColor,
   INITIAL_BUDGET,
@@ -1236,6 +1236,7 @@ export function AuctionUI({
   const [joinBanner, setJoinBanner] = useState(null);
   const [reassigningId, setReassigningId] = useState(null);
   const [reassignCoachId, setReassignCoachId] = useState('');
+  const stageRef = useRef(null);
 
   const isAuctioneer = isBanditoreRole(coachId);
   const joinedCoaches = getJoinedCoaches(coaches);
@@ -1282,6 +1283,12 @@ export function AuctionUI({
   const cancelReassign = () => {
     setReassigningId(null);
     setReassignCoachId('');
+  };
+
+  const scrollToStage = () => {
+    requestAnimationFrame(() => {
+      stageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   };
 
   useAuctionBeep({
@@ -1428,7 +1435,7 @@ export function AuctionUI({
           </ul>
         </aside>
 
-        <section className="dash-panel stage-panel">
+        <section className="dash-panel stage-panel" ref={stageRef}>
           <CourtBackground />
           <div className="stage-inner">
             <div className="stage-head">
@@ -1739,7 +1746,10 @@ export function AuctionUI({
                                 type="button"
                                 className="btn-secondary btn-table-action"
                                 disabled={isLive || p.id === currentPlayer?.id}
-                                onClick={() => onStartSinglePlayer?.(p.id)}
+                                onClick={() => {
+                                  onStartSinglePlayer?.(p.id);
+                                  scrollToStage();
+                                }}
                               >
                                 Metti in asta
                               </button>

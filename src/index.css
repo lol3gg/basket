@@ -761,6 +761,7 @@ body::after {
   min-height: 480px;
   padding: 0;
   border-color: var(--border-strong);
+  scroll-margin-top: 0.75rem;
 }
 
 .stage-panel::after {

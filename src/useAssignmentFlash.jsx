@@ -13,18 +13,35 @@ export function useAssignmentFlash({
   const seenRef = useRef(null);
 
   useEffect(() => {
-    if (phase !== 'settled' || !currentPlayer?.id || !currentBidder || currentBid <= 0) {
+    if (phase !== 'settled' || !currentPlayer?.id) {
       if (phase !== 'settled') seenRef.current = null;
       return undefined;
     }
 
-    const key = `${currentPlayer.id}:${currentBidder}:${currentBid}`;
+    const sold = Boolean(currentBidder && currentBid > 0);
+    const key = sold
+      ? `${currentPlayer.id}:sold:${currentBidder}:${currentBid}`
+      : `${currentPlayer.id}:unsold`;
+
     if (seenRef.current === key) return undefined;
     seenRef.current = key;
 
+    const playerName = currentPlayer.name;
+
+    if (!sold) {
+      if (announceVoice && !isMobileDevice() && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(
+          `${playerName} non è stato assegnato a nessuno`,
+        );
+        msg.lang = 'it-IT';
+        window.speechSynthesis.speak(msg);
+      }
+      return undefined;
+    }
+
     const coach = coaches.find((c) => c.id === currentBidder);
     const coachName = getCoachDisplayName(coach);
-    const playerName = currentPlayer.name;
 
     setFlash({ playerName, coachName, bid: currentBid, exiting: false });
 

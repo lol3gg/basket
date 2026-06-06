@@ -699,6 +699,56 @@ body::after {
   text-transform: uppercase;
 }
 
+.coach-budget-min-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.45rem;
+  border-radius: 3px;
+  background: rgba(220, 38, 38, 0.18);
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  color: #fca5a5;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.coach-budget-min-badge.sm {
+  font-size: 0.58rem;
+  padding: 0.1rem 0.35rem;
+}
+
+.coach-budget-min-badge.mobile {
+  margin: 0.15rem auto 0.35rem;
+}
+
+.coach-card.budget-minimum,
+.admin-coach-list li.budget-minimum {
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.budget-reserve-hint {
+  margin: 0.5rem 0 0;
+  padding: 0.45rem 0.75rem;
+  border-radius: 6px;
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  color: var(--gold);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.budget-reserve-hint strong {
+  color: #fde047;
+}
+
+.mobile-budget-reserve {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+}
+
 .coach-spent {
   font-size: 0.68rem;
   color: var(--muted);

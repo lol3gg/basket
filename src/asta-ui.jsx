@@ -25,8 +25,14 @@ import { AssignmentFlashOverlay, useAssignmentFlash } from './useAssignmentFlash
 import { BasketballIcon } from './BasketballDecor.jsx';
 import { buildCoachRankings, exportAstaPdf } from './exportAstaPdf.js';
 import { getPlayerInitials, getPlayerAvatarColor, readPlayerPhotoFile } from './playerPhoto.js';
+import {
+  ROSTER_SLOTS,
+  buildBidOptions,
+  getMaxBidAmount,
+  isBudgetMinimum,
+  isInBudgetReserve,
+} from './asta-budget.js';
 
-const ROSTER_SLOTS = 5;
 const APP_TITLE = 'Asta Torneo Basket';
 const TABS = [
   { id: 'overview', label: 'Panoramica' },
@@ -238,10 +244,11 @@ function CoachCard({ coach, isLeading, isOffline }) {
   const spent = INITIAL_BUDGET - coach.budget;
   const pct = Math.round((coach.budget / INITIAL_BUDGET) * 100);
   const displayName = getCoachDisplayName(coach);
+  const budgetMin = isBudgetMinimum(coach);
 
   return (
     <li
-      className={`coach-card ${isLeading ? 'leading' : ''} ${isOffline ? 'offline' : ''}`}
+      className={`coach-card ${isLeading ? 'leading' : ''} ${isOffline ? 'offline' : ''} ${budgetMin ? 'budget-minimum' : ''}`}
     >
       <div className="coach-card-head">
         <span className="coach-num" style={{ '--coach-color': getCoachColor(coach.id) }}>{coach.id}</span>
@@ -250,6 +257,7 @@ function CoachCard({ coach, isLeading, isOffline }) {
           <span className="coach-budget">{coach.budget} cr. rimasti</span>
         </div>
         <span className="coach-pill">{coach.players.length} gioc.</span>
+        {budgetMin && <span className="coach-budget-min-badge">Budget minimo</span>}
       </div>
       <div className="budget-bar">
         <div className="budget-bar-fill" style={{ width: `${pct}%`, background: getCoachColor(coach.id) }} />
@@ -763,11 +771,9 @@ export function CoachMobileUI({
     maxTimer: AUCTION_SECONDS,
   });
 
-  const bidAmounts = [
-    { label: '+1', amount: Math.max(currentBid + 1, 1) },
-    { label: '+5', amount: currentBid + 5 },
-    { label: '+10', amount: currentBid + 10 },
-  ];
+  const bidAmounts = buildBidOptions(currentBid, myCoach).options;
+  const maxBid = getMaxBidAmount(myCoach);
+  const inReserve = isInBudgetReserve(myCoach);
 
   const statusText = isSettled
     ? 'Attendi la conferma del banditore'
@@ -807,6 +813,9 @@ export function CoachMobileUI({
         <h1 className="mobile-coach-name" style={{ '--coach-color': myColor }}>
           {getCoachDisplayName(myCoach)}
         </h1>
+        {isBudgetMinimum(myCoach) && (
+          <span className="coach-budget-min-badge mobile">Budget minimo</span>
+        )}
         <p className="mobile-coach-budget">{myCoach?.budget ?? 0} crediti disponibili</p>
       </header>
 
@@ -856,27 +865,34 @@ export function CoachMobileUI({
       </section>
 
       {isLive && currentPlayer && myCoach && (
-        <div className="mobile-bid-row">
-          {bidAmounts.map(({ label, amount }) => {
-            const disabled = myCoach.budget < amount;
-            return (
-              <button
-                key={label}
-                type="button"
-                className="mobile-bid-btn"
-                style={{ '--coach-color': disabled ? undefined : myColor }}
-                disabled={disabled}
-                onClick={() => {
-                  playBidFeedback();
-                  onBid(amount);
-                }}
-              >
-                <span className="mobile-bid-btn-label">{label}</span>
-                <span className="mobile-bid-btn-amount">{amount} cr.</span>
-              </button>
-            );
-          })}
-        </div>
+        <>
+          {inReserve && maxBid >= Math.max(currentBid + 1, 1) && (
+            <p className="budget-reserve-hint mobile-budget-reserve">
+              Puoi offrire massimo <strong>{maxBid}</strong> crediti
+            </p>
+          )}
+          <div className="mobile-bid-row">
+            {bidAmounts.map(({ label, amount }) => {
+              const disabled = amount > maxBid;
+              return (
+                <button
+                  key={`${label}-${amount}`}
+                  type="button"
+                  className="mobile-bid-btn"
+                  style={{ '--coach-color': disabled ? undefined : myColor }}
+                  disabled={disabled}
+                  onClick={() => {
+                    playBidFeedback();
+                    onBid(amount);
+                  }}
+                >
+                  <span className="mobile-bid-btn-label">{label}</span>
+                  <span className="mobile-bid-btn-amount">{amount} cr.</span>
+                </button>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );
@@ -1283,11 +1299,9 @@ export function AuctionUI({
     announceVoice: isAuctioneer && !isMobileDevice(),
   });
 
-  const bidAmounts = [
-    { label: '+1', amount: Math.max(currentBid + 1, 1) },
-    { label: '+5', amount: currentBid + 5 },
-    { label: '+10', amount: currentBid + 10 },
-  ];
+  const bidAmounts = buildBidOptions(currentBid, myCoach).options;
+  const maxBid = myCoach ? getMaxBidAmount(myCoach) : 0;
+  const inReserve = myCoach ? isInBudgetReserve(myCoach) : false;
 
   const auctioneerActions = isAuctioneer && (
     <>
@@ -1418,27 +1432,34 @@ export function AuctionUI({
               <p className="urgent-hint">Ultimi secondi — rilancia ora!</p>
             )}
             {!isAuctioneer && isLive && currentPlayer && myCoach && (
-              <div className="bid-row">
-                {bidAmounts.map(({ label, amount }) => {
-                  const disabled = myCoach.budget < amount;
-                  return (
-                    <button
-                      key={label}
-                      type="button"
-                      className="bid-btn"
-                      style={{ '--coach-color': disabled ? undefined : myColor }}
-                      disabled={disabled}
-                      onClick={() => {
-                  playBidFeedback();
-                  onBid(amount);
-                }}
-                    >
-                      {label}
-                      <span>{amount} cr.</span>
-                    </button>
-                  );
-                })}
-              </div>
+              <>
+                {inReserve && maxBid >= Math.max(currentBid + 1, 1) && (
+                  <p className="budget-reserve-hint">
+                    Puoi offrire massimo <strong>{maxBid}</strong> crediti
+                  </p>
+                )}
+                <div className="bid-row">
+                  {bidAmounts.map(({ label, amount }) => {
+                    const disabled = amount > maxBid;
+                    return (
+                      <button
+                        key={`${label}-${amount}`}
+                        type="button"
+                        className="bid-btn"
+                        style={{ '--coach-color': disabled ? undefined : myColor }}
+                        disabled={disabled}
+                        onClick={() => {
+                          playBidFeedback();
+                          onBid(amount);
+                        }}
+                      >
+                        {label}
+                        <span>{amount} cr.</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
             )}
             {isPaused && isAuctioneer && (
               <p className="stage-hint muted">Timer in pausa — clicca Riprendi per continuare</p>
@@ -1463,10 +1484,13 @@ export function AuctionUI({
                 <li className="muted">In attesa del primo allenatore…</li>
               )}
               {joinedCoaches.map((c) => (
-                <li key={c.id} className={c.online ? 'online' : 'offline'}>
+                <li key={c.id} className={`${c.online ? 'online' : 'offline'}${isBudgetMinimum(c) ? ' budget-minimum' : ''}`}>
                   <span className="coach-num sm" style={{ '--coach-color': getCoachColor(c.id) }}>{c.id}</span>
                   <span className="admin-coach-name">{getCoachDisplayName(c)}</span>
                   <span className="admin-coach-budget">{c.budget} cr.</span>
+                  {isBudgetMinimum(c) && (
+                    <span className="coach-budget-min-badge sm">Budget minimo</span>
+                  )}
                   {onRemoveCoach && c.id !== BANDITORE_COACH_ID && (
                     <button
                       type="button"

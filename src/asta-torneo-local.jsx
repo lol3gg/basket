@@ -18,6 +18,7 @@ import {
 } from './asta-setup.js';
 import { buildRestartPlayerState, removeCoachFromState } from './asta-logic.js';
 import { isAuctionComplete } from './exportAstaPdf.js';
+import { canAffordBid, maybeApplyForcedAssignments } from './asta-budget.js';
 import { AuctionUI, BanditoreEntryScreen, CoachEntryScreen, CoachMobileUI, FinalResultsScreen, SetupScreen } from './asta-ui.jsx';
 
 const COACH_STORAGE_KEY = 'asta_coach_id';
@@ -119,7 +120,22 @@ export function AstaTorneoLocal() {
   };
 
   const advanceToNext = useCallback((updatedPlayers) => {
-    const next = updatedPlayers.find((p) => p.status === 'available') ?? null;
+    let playersState = updatedPlayers;
+    let coachesState = stateRef.current.coaches;
+    const { state: forcedState, logLines } = maybeApplyForcedAssignments({
+      ...stateRef.current,
+      players: playersState,
+      coaches: coachesState,
+    });
+    if (logLines.length > 0) {
+      playersState = forcedState.players;
+      coachesState = forcedState.coaches;
+      setCoaches(coachesState);
+      logLines.forEach((text) => pushLog(text));
+    }
+
+    const next = playersState.find((p) => p.status === 'available') ?? null;
+    setPlayers(playersState);
     setCurrentPlayer(next);
     setCurrentBid(0);
     setCurrentBidder(null);
@@ -317,8 +333,24 @@ export function AstaTorneoLocal() {
       advanceToNext(players);
       return;
     }
-    const available = players.filter((p) => p.status === 'available');
+
+    let coachesState = coaches;
+    let playersState = players;
+    const { state: forcedState, logLines } = maybeApplyForcedAssignments({
+      ...stateRef.current,
+      players: playersState,
+      coaches: coachesState,
+    });
+    if (logLines.length > 0) {
+      playersState = forcedState.players;
+      coachesState = forcedState.coaches;
+      setCoaches(coachesState);
+      logLines.forEach((text) => pushLog(text));
+    }
+
+    const available = playersState.filter((p) => p.status === 'available');
     const next = available.find((p) => p.id !== currentPlayer?.id) ?? available[0] ?? null;
+    setPlayers(playersState);
     setCurrentPlayer(next);
     setCurrentBid(0);
     setCurrentBidder(null);
@@ -340,8 +372,8 @@ export function AstaTorneoLocal() {
       return;
     }
     const coach = coaches.find((c) => c.id === coachId);
-    if (!coach || coach.budget < amount) {
-      setBidError('Budget insufficiente.');
+    if (!coach || !canAffordBid(coach, amount)) {
+      setBidError('Riserva budget insufficiente per completare la rosa.');
       return;
     }
     const minBid = Math.max(currentBid + BID_INCREMENT, 1);

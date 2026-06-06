@@ -42,6 +42,7 @@ import {
 } from './asta-setup.js';
 import { buildRestartPlayerState, disconnectCoachFromState } from './asta-logic.js';
 import { isAuctionComplete } from './exportAstaPdf.js';
+import { canAffordBid, maybeApplyForcedAssignments } from './asta-budget.js';
 import {
   AuctionUI,
   BanditoreEntryScreen,
@@ -109,7 +110,7 @@ function applyBid(state, coachId, amount) {
   const minBid = Math.max(state.currentBid + BID_INCREMENT, 1);
   if (amount < minBid) return null;
   const coach = state.coaches.find((c) => c.id === coachId);
-  if (!coach || coach.budget < amount) return null;
+  if (!coach || !canAffordBid(coach, amount)) return null;
   return {
     ...state,
     currentBid: amount,
@@ -469,10 +470,16 @@ function AstaTorneoAbly() {
 
   const advanceToNextPlayer = useCallback(() => {
     if (!isAuctioneer) return;
-    const ps = gameStateRef.current.players;
+    let snapshot = gameStateRef.current;
+    const { state: forcedState, logLines } = maybeApplyForcedAssignments(snapshot);
+    if (logLines.length > 0) {
+      snapshot = logLines.reduce((s, text) => appendLog(s, text), forcedState);
+    }
+
+    const ps = snapshot.players;
     const next = ps.find((p) => p.status === 'available') ?? null;
     let state = {
-      ...gameStateRef.current,
+      ...snapshot,
       phase: next ? 'live' : 'idle',
       currentPlayer: next,
       currentBid: 0,
@@ -713,10 +720,15 @@ function AstaTorneoAbly() {
       handleConfirmNext();
       return;
     }
-    const available = players.filter((p) => p.status === 'available');
-    const next = available.find((p) => p.id !== currentPlayer?.id) ?? available[0] ?? null;
-    let state = {
-      ...gameStateRef.current,
+
+    let snapshot = gameStateRef.current;
+    const { state: forcedState, logLines } = maybeApplyForcedAssignments(snapshot);
+    let state = logLines.reduce((s, text) => appendLog(s, text), forcedState);
+
+    const available = state.players.filter((p) => p.status === 'available');
+    const next = available.find((p) => p.id !== state.currentPlayer?.id) ?? available[0] ?? null;
+    state = {
+      ...state,
       currentPlayer: next,
       currentBid: 0,
       currentBidder: null,
@@ -735,8 +747,8 @@ function AstaTorneoAbly() {
       return;
     }
     const coach = coaches.find((c) => c.id === coachId);
-    if (!coach || coach.budget < amount) {
-      setBidError('Budget insufficiente.');
+    if (!coach || !canAffordBid(coach, amount)) {
+      setBidError('Riserva budget insufficiente per completare la rosa.');
       return;
     }
     const minBid = Math.max(currentBid + BID_INCREMENT, 1);

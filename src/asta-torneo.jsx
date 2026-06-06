@@ -852,6 +852,7 @@ function AstaTorneoAbly() {
       )}
       <AuctionUI
         {...sharedProps}
+        stanzaCode={stanzaCode}
         players={players}
         log={log}
         actionError={actionError}

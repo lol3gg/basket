@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
-import { INITIAL_BUDGET, BANDITORE_COACH_ID, getCoachDisplayName } from './asta-setup.js';
+import { INITIAL_BUDGET, BANDITORE_COACH_ID, getCoachDisplayName, getJoinedCoaches } from './asta-setup.js';
 
 const PDF_ORANGE = [232, 82, 42];
 const PDF_DARK = [18, 18, 18];
@@ -55,71 +55,15 @@ export function exportAstaPdf({ stanzaCode, coaches, log = [] }) {
   const endTs = log[log.length - 1]?.timestamp ?? Date.now();
   const stanza = (stanzaCode || 'STANZA').trim().toUpperCase();
   const rankings = buildCoachRankings(coaches);
-  let y = MARGIN;
 
-  doc.setFillColor(...PDF_DARK);
-  doc.rect(0, 0, pageWidth, 36, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.text(`ASTA TORNEO BASKET — ${stanza}`, MARGIN, 16);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(formatDateTime(endTs), MARGIN, 26);
-  y = 46;
+  let y = drawPdfHeader(
+    doc,
+    `ASTA TORNEO BASKET — ${stanza}`,
+    formatDateTime(endTs),
+  );
 
   rankings.forEach((coach) => {
-    if (y > 250) {
-      doc.addPage();
-      y = MARGIN;
-    }
-
-    doc.setFillColor(...PDF_ORANGE);
-    doc.rect(MARGIN, y - 5, pageWidth - MARGIN * 2, 10, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text(getCoachDisplayName(coach), MARGIN + 2, y + 2);
-    y += 12;
-
-    doc.setTextColor(...PDF_DARK);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.text(`Budget rimasto: ${coach.budget} cr.`, MARGIN, y);
-    doc.text(`Totale speso: ${coach.spent} cr.`, MARGIN + 70, y);
-    y += 8;
-
-    const rows = coach.players.length
-      ? coach.players.map((p) => [p.name, p.role, String(p.price)])
-      : [['—', '—', '0']];
-
-    autoTable(doc, {
-      startY: y,
-      head: [['Giocatore', 'Ruolo', 'Prezzo']],
-      body: rows,
-      theme: 'grid',
-      margin: { left: MARGIN, right: MARGIN },
-      headStyles: {
-        fillColor: PDF_ORANGE,
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        fontSize: 9,
-      },
-      bodyStyles: {
-        fontSize: 9,
-        textColor: PDF_DARK,
-      },
-      alternateRowStyles: {
-        fillColor: [245, 245, 245],
-      },
-      styles: {
-        cellPadding: 3,
-        lineColor: [220, 220, 220],
-        lineWidth: 0.2,
-      },
-    });
-
-    y = doc.lastAutoTable.finalY + 10;
+    y = drawCoachRosterTable(doc, coach, y);
   });
 
   if (y > 230) {
@@ -178,4 +122,104 @@ export function exportAstaPdf({ stanzaCode, coaches, log = [] }) {
   );
 
   doc.save(`asta-${stanza}-${formatFileDate(endTs)}.pdf`);
+}
+
+function drawPdfHeader(doc, title, subtitle) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  doc.setFillColor(...PDF_DARK);
+  doc.rect(0, 0, pageWidth, 36, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text(title, MARGIN, 16);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(subtitle, MARGIN, 26);
+  return 46;
+}
+
+function drawCoachRosterTable(doc, coach, startY) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = startY;
+
+  if (y > 250) {
+    doc.addPage();
+    y = MARGIN;
+  }
+
+  const spent = INITIAL_BUDGET - coach.budget;
+
+  doc.setFillColor(...PDF_ORANGE);
+  doc.rect(MARGIN, y - 5, pageWidth - MARGIN * 2, 10, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text(getCoachDisplayName(coach), MARGIN + 2, y + 2);
+  y += 12;
+
+  doc.setTextColor(...PDF_DARK);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Budget rimasto: ${coach.budget} cr.`, MARGIN, y);
+  doc.text(`Totale speso: ${spent} cr.`, MARGIN + 70, y);
+  y += 8;
+
+  const rows = coach.players?.length
+    ? coach.players.map((p) => [p.name, p.role, String(p.price)])
+    : [['—', '—', '0']];
+
+  autoTable(doc, {
+    startY: y,
+    head: [['Giocatore', 'Ruolo', 'Prezzo']],
+    body: rows,
+    theme: 'grid',
+    margin: { left: MARGIN, right: MARGIN },
+    headStyles: {
+      fillColor: PDF_ORANGE,
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 9,
+    },
+    bodyStyles: {
+      fontSize: 9,
+      textColor: PDF_DARK,
+    },
+    alternateRowStyles: {
+      fillColor: [245, 245, 245],
+    },
+    styles: {
+      cellPadding: 3,
+      lineColor: [220, 220, 220],
+      lineWidth: 0.2,
+    },
+  });
+
+  return doc.lastAutoTable.finalY + 10;
+}
+
+/** PDF con le rose di tutti gli allenatori (utilizzabile anche durante l'asta). */
+export function exportRostersPdf({ stanzaCode, coaches }) {
+  const doc = new jsPDF();
+  const stanza = (stanzaCode || 'STANZA').trim().toUpperCase();
+  const now = Date.now();
+  const rosterCoaches = getJoinedCoaches(coaches).sort((a, b) => a.id - b.id);
+
+  let y = drawPdfHeader(
+    doc,
+    `ROSE ALLENATORI — ${stanza}`,
+    formatDateTime(now),
+  );
+
+  if (rosterCoaches.length === 0) {
+    doc.setTextColor(...PDF_DARK);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text('Nessun allenatore connesso.', MARGIN, y);
+  } else {
+    rosterCoaches.forEach((coach) => {
+      y = drawCoachRosterTable(doc, coach, y);
+    });
+  }
+
+  doc.save(`rose-${stanza}-${formatFileDate(now)}.pdf`);
 }

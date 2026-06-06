@@ -506,6 +506,7 @@ export function AstaTorneoLocal() {
   return (
     <AuctionUI
       {...sharedProps}
+      stanzaCode={stanzaCode || LOCAL_STANZA}
       players={players}
       log={log}
       actionError={actionError}

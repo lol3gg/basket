@@ -1367,13 +1367,34 @@ body::after {
   overflow: hidden;
 }
 
+.tabs-panel-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-right: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+.tabs-panel-head .tab-bar {
+  flex: 1;
+  min-width: 0;
+  border-bottom: none;
+}
+
+.btn-export-rosters {
+  flex-shrink: 0;
+  margin-bottom: 0.65rem;
+  white-space: nowrap;
+}
+
 .tab-bar {
   display: flex;
   gap: 0.35rem;
   padding: 0.65rem 0.75rem 0;
-  border-bottom: 1px solid var(--border);
   overflow-x: auto;
-  background: var(--surface-muted);
+  background: transparent;
 }
 
 .tab-btn {

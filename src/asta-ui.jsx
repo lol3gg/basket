@@ -23,7 +23,7 @@ import { FullscreenToggle } from './useFullscreen.jsx';
 import { useMobileViewportLock } from './useMobileViewportLock.js';
 import { AssignmentFlashOverlay, useAssignmentFlash } from './useAssignmentFlash.jsx';
 import { BasketballIcon } from './BasketballDecor.jsx';
-import { buildCoachRankings, exportAstaPdf } from './exportAstaPdf.js';
+import { buildCoachRankings, exportAstaPdf, exportRostersPdf } from './exportAstaPdf.js';
 import { getPlayerInitials, getPlayerAvatarColor, readPlayerPhotoFile } from './playerPhoto.js';
 import {
   ROSTER_SLOTS,
@@ -1199,6 +1199,7 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '', gamePlayers = []
 
 export function AuctionUI({
   coachId,
+  stanzaCode = '',
   onChangeCoach,
   connected,
   connectedLabel,
@@ -1253,6 +1254,10 @@ export function AuctionUI({
         : 'In attesa';
   const availableCount = players.filter((p) => p.status === 'available').length;
   const canConfirmNext = isSettled;
+
+  const handleExportRosters = () => {
+    exportRostersPdf({ stanzaCode, coaches });
+  };
 
   useAuctionBeep({
     timer,
@@ -1552,7 +1557,19 @@ export function AuctionUI({
       </div>
 
       <section className="dash-panel tabs-panel">
-        <TabBar active={activeTab} onChange={setActiveTab} />
+        <div className="tabs-panel-head">
+          <TabBar active={activeTab} onChange={setActiveTab} />
+          {activeTab === 'rosters' && (
+            <button
+              type="button"
+              className="btn-cta btn-export-rosters"
+              onClick={handleExportRosters}
+              disabled={joinedCoaches.length === 0}
+            >
+              Scarica PDF rose
+            </button>
+          )}
+        </div>
 
         {activeTab === 'overview' && (
           <div className="tab-content overview-grid">
@@ -1598,7 +1615,8 @@ export function AuctionUI({
         )}
 
         {activeTab === 'rosters' && (
-          <div className="tab-content rosters-grid">
+          <div className="tab-content">
+            <div className="rosters-grid">
             {joinedCoaches.length === 0 && (
               <p className="muted">Nessuna rosa — gli allenatori devono entrare dal link.</p>
             )}
@@ -1623,6 +1641,7 @@ export function AuctionUI({
                 </ul>
               </div>
             ))}
+            </div>
           </div>
         )}
 

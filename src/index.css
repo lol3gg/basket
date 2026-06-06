@@ -247,7 +247,12 @@ body::after {
 
 /* ── Header ── */
 .dash-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
   margin-bottom: 1.25rem;
+  padding: 0.75rem 0 1rem;
+  background: linear-gradient(to bottom, var(--bg-main) 70%, transparent);
 }
 
 .dash-brand,

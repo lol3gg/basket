@@ -87,8 +87,16 @@ const BID_INCREMENT = 1;
 
 function sanitizeGameState(raw) {
   if (!raw || typeof raw !== 'object') return null;
+  const players = Array.isArray(raw.players)
+    ? raw.players.filter((p) => p && typeof p === 'object' && Number.isFinite(Number(p.id)))
+    : [];
+  const coaches = Array.isArray(raw.coaches)
+    ? raw.coaches.filter((c) => c && typeof c === 'object' && Number.isFinite(Number(c.id)))
+    : [];
   return {
-    currentPlayer: raw.currentPlayer ?? null,
+    currentPlayer: raw.currentPlayer && typeof raw.currentPlayer === 'object'
+      ? raw.currentPlayer
+      : null,
     currentBid: typeof raw.currentBid === 'number' ? raw.currentBid : 0,
     currentBidder: raw.currentBidder ?? null,
     timer: typeof raw.timer === 'number' ? raw.timer : AUCTION_SECONDS,
@@ -96,9 +104,9 @@ function sanitizeGameState(raw) {
       ? raw.phase
       : 'idle',
     isRunning: Boolean(raw.isRunning),
-    coaches: Array.isArray(raw.coaches) ? raw.coaches : [],
-    players: Array.isArray(raw.players) ? raw.players : [],
-    log: Array.isArray(raw.log) ? raw.log : [],
+    coaches,
+    players,
+    log: Array.isArray(raw.log) ? raw.log.filter((e) => e && typeof e.text === 'string') : [],
   };
 }
 
@@ -156,6 +164,8 @@ function AstaTorneoAbly() {
   const [showSetup, setShowSetup] = useState(false);
   const [connected, setConnected] = useState(false);
   const [offline, setOffline] = useState(false);
+  const [connectionError, setConnectionError] = useState('');
+  const [auctioneerStale, setAuctioneerStale] = useState(false);
   const [bidError, setBidError] = useState('');
   const [actionError, setActionError] = useState('');
   const [resultsDismissed, setResultsDismissed] = useState(false);
@@ -170,6 +180,7 @@ function AstaTorneoAbly() {
   const pendingJoinRef = useRef(null);
   const joinAttemptsRef = useRef(0);
   const coachRegisteredRef = useRef(false);
+  const lastStateAtRef = useRef(Date.now());
 
   const isAuctioneer = isBanditoreConsole(coachId, isBanditoreSessionVerified());
   isAuctioneerRef.current = isAuctioneer;
@@ -191,11 +202,14 @@ function AstaTorneoAbly() {
   const applyState = useCallback((data) => {
     const sanitized = sanitizeGameState(data);
     if (!sanitized) return;
+    lastStateAtRef.current = Date.now();
+    setAuctioneerStale(false);
     gameStateRef.current = sanitized;
     setGameState(sanitized);
   }, []);
 
   const publishState = useCallback((next) => {
+    lastStateAtRef.current = Date.now();
     gameStateRef.current = next;
     setGameState(next);
     channelRef.current?.publish('state', next).catch((err) => {
@@ -219,17 +233,25 @@ function AstaTorneoAbly() {
     const onConnected = () => {
       setConnected(true);
       setOffline(false);
+      setConnectionError('');
     };
     const onDisconnected = () => {
       setConnected(false);
       setOffline(true);
     };
     const onConnecting = () => setOffline(true);
+    const onFailed = () => {
+      setConnected(false);
+      setOffline(true);
+      setConnectionError(
+        'Impossibile connettersi ad Ably. Verifica VITE_ABLY_KEY, rete e che la stanza sia corretta.',
+      );
+    };
 
     ably.connection.on('connected', onConnected);
     ably.connection.on('disconnected', onDisconnected);
     ably.connection.on('connecting', onConnecting);
-    ably.connection.on('failed', onDisconnected);
+    ably.connection.on('failed', onFailed);
 
     if (ably.connection.state === 'connected') onConnected();
 
@@ -301,20 +323,38 @@ function AstaTorneoAbly() {
 
     return () => {
       channel.unsubscribe('state', onState);
-      if (isAuctioneer) {
-        channel.unsubscribe('bid', onBid);
-        channel.unsubscribe('join', onJoinRequest);
-        channel.unsubscribe('leave', onLeaveRequest);
-      }
+      channel.unsubscribe('bid', onBid);
+      channel.unsubscribe('join', onJoinRequest);
+      channel.unsubscribe('leave', onLeaveRequest);
       ably.connection.off('connected', onConnected);
       ably.connection.off('disconnected', onDisconnected);
       ably.connection.off('connecting', onConnecting);
-      ably.connection.off('failed', onDisconnected);
+      ably.connection.off('failed', onFailed);
       ably.close();
       ablyRef.current = null;
       channelRef.current = null;
     };
   }, [stanzaCode, showRoomEntry, isAuctioneer, applyState, publishState]);
+
+  useEffect(() => {
+    if (isAuctioneer || showRoomEntry || !coachId) {
+      setAuctioneerStale(false);
+      return undefined;
+    }
+
+    const check = () => {
+      const { phase: ph, isRunning: running } = gameStateRef.current;
+      if (ph === 'live' && running && Date.now() - lastStateAtRef.current > 8000) {
+        setAuctioneerStale(true);
+      } else {
+        setAuctioneerStale(false);
+      }
+    };
+
+    check();
+    const interval = setInterval(check, 2000);
+    return () => clearInterval(interval);
+  }, [isAuctioneer, showRoomEntry, coachId, phase, isRunning]);
 
   const completeJoin = useCallback((id, requestId) => {
     if (pendingJoinRef.current?.requestId !== requestId) return;
@@ -742,7 +782,12 @@ function AstaTorneoAbly() {
 
   const handleReAuctionPlayer = useCallback((playerId) => {
     if (!isAuctioneer) return;
-    const result = buildReAuctionPlayerState(gameStateRef.current, playerId);
+    const state = gameStateRef.current;
+    if (state.phase === 'settled') {
+      setActionError('Conferma l\'asta in corso prima di avviare una riasta.');
+      return;
+    }
+    const result = buildReAuctionPlayerState(state, playerId);
     if (!result) return;
     const { state: next, price, coach } = result;
     publishState(appendLog(
@@ -928,21 +973,26 @@ function AstaTorneoAbly() {
   if (!isAuctioneer) {
     return (
       <>
-        {offline && (
+        {(connectionError || offline) && (
           <div className="offline-banner">
-            Connessione persa — riconnessione in corso…
+            {connectionError || 'Connessione persa — riconnessione in corso…'}
           </div>
         )}
-        <CoachMobileUI {...sharedProps} />
+        {auctioneerStale && !connectionError && (
+          <div className="offline-banner stale-banner">
+            Il banditore potrebbe essersi disconnesso — l&apos;asta è temporaneamente bloccata.
+          </div>
+        )}
+        <CoachMobileUI {...sharedProps} auctioneerStale={auctioneerStale} />
       </>
     );
   }
 
   return (
     <>
-      {offline && (
+      {(connectionError || offline) && (
         <div className="offline-banner">
-          Connessione persa — riconnessione in corso…
+          {connectionError || 'Connessione persa — riconnessione in corso…'}
         </div>
       )}
       <AuctionUI

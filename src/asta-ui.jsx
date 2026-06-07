@@ -18,6 +18,7 @@ import {
   getJoinedCoaches,
   BANDITORE_COACH_ID,
   BANDITORE_PASSWORD,
+  StorageQuotaError,
 } from './asta-setup.js';
 import { useAuctionBeep, useBidSound, usePlayerStartSound, useCoachJoinAlert, playBidFeedback, URGENT_TIMER_SECONDS } from './useAuctionBeep.js';
 import { FullscreenToggle } from './useFullscreen.jsx';
@@ -29,7 +30,6 @@ import { getPlayerInitials, getPlayerAvatarColor, readPlayerPhotoFile } from './
 import {
   ROSTER_SLOTS,
   buildBidOptions,
-  buildMobileBidOptions,
   getMaxBidAmount,
   isBudgetMinimum,
   isInBudgetReserve,
@@ -737,6 +737,7 @@ export function CoachMobileUI({
   coaches,
   bidError,
   onBid,
+  auctioneerStale = false,
 }) {
   useMobileViewportLock();
 
@@ -745,6 +746,7 @@ export function CoachMobileUI({
   const isLive = phase === 'live' && isRunning;
   const isPaused = phase === 'paused';
   const isSettled = phase === 'settled';
+  const isReady = phase === 'live' && !isRunning && Boolean(currentPlayer) && !isSettled;
   const leadingCoach = coaches.find((c) => c.id === currentBidder);
   const iAmLeading = currentBidder === coachId;
   const sold = isSettled && currentBid > 0 && currentBidder;
@@ -775,17 +777,19 @@ export function CoachMobileUI({
     maxTimer: AUCTION_SECONDS,
   });
 
-  const bidAmounts = buildMobileBidOptions(currentBid);
-  const maxBid = getMaxBidAmount(myCoach);
-  const inReserve = isInBudgetReserve(myCoach);
+  const { options: bidAmounts, maxBid, inReserve } = buildBidOptions(currentBid, myCoach);
 
-  const statusText = isSettled
-    ? 'Attendi la conferma del banditore'
-    : isPaused
-      ? 'Asta in pausa'
-      : isLive
-        ? (iAmLeading ? 'Sei in testa!' : 'Rilancia ora')
-        : 'In attesa che il banditore avvii…';
+  const statusText = auctioneerStale && isLive
+    ? 'In attesa del banditore…'
+    : isSettled
+      ? 'Attendi la conferma del banditore'
+      : isPaused
+        ? 'Asta in pausa'
+        : isReady
+          ? 'Giocatore in palco — asta non ancora avviata'
+          : isLive
+            ? (iAmLeading ? 'Sei in testa!' : 'Rilancia ora')
+            : 'In attesa che il banditore avvii…';
 
   const settledMessage = isSettled && currentPlayer
     ? (sold
@@ -880,7 +884,7 @@ export function CoachMobileUI({
               const disabled = amount > maxBid;
               return (
                 <button
-                  key={label}
+                  key={`${label}-${amount}`}
                   type="button"
                   className="mobile-bid-btn"
                   style={{ '--coach-color': disabled ? undefined : myColor }}
@@ -891,6 +895,7 @@ export function CoachMobileUI({
                   }}
                 >
                   <span className="mobile-bid-btn-label">{label}</span>
+                  <span className="mobile-bid-btn-amount">{amount} cr.</span>
                 </button>
               );
             })}
@@ -1059,6 +1064,7 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '', gamePlayers = []
     };
   });
   const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
+  const [storageError, setStorageError] = useState('');
   const skipAutoSaveRef = useRef(true);
 
   useEffect(() => {
@@ -1066,7 +1072,14 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '', gamePlayers = []
       skipAutoSaveRef.current = false;
       return;
     }
-    saveSetup(draft);
+    try {
+      saveSetup(draft);
+      setStorageError('');
+    } catch (err) {
+      if (err instanceof StorageQuotaError) {
+        setStorageError(err.message);
+      }
+    }
   }, [draft]);
 
   const updatePlayer = (id, field, value) => {
@@ -1167,6 +1180,7 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '', gamePlayers = []
               Reimposta giocatori default
             </button>
           </div>
+          {storageError && <div className="alert setup-storage-alert">{storageError}</div>}
           <p className="setup-note muted">
             Lista vuota all&apos;inizio. Aggiungi i giocatori uno a uno, oppure Demo per 16 giocatori finti.
             Modifiche e foto salvate automaticamente nel browser.

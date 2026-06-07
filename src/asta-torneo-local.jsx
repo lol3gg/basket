@@ -349,6 +349,10 @@ export function AstaTorneoLocal() {
 
   const handleReAuctionPlayer = (playerId) => {
     if (!isAuctioneer) return;
+    if (phase === 'settled') {
+      setActionError('Conferma l\'asta in corso prima di avviare una riasta.');
+      return;
+    }
     const result = buildReAuctionPlayerState(stateRef.current, playerId);
     if (!result) return;
     const { state: next, price, coach } = result;

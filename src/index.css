@@ -236,6 +236,14 @@ body::after {
   text-transform: uppercase;
 }
 
+.stale-banner {
+  background: rgba(180, 110, 20, 0.95);
+}
+
+.setup-storage-alert {
+  margin-bottom: 0.75rem;
+}
+
 .coach-join-banner {
   margin: 0 0 0.85rem;
   padding: 0.75rem 1rem;
@@ -3025,7 +3033,7 @@ html:-webkit-full-screen .app {
 
 .mobile-bid-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
   gap: 0.55rem;
   padding: 0 0.25rem;
 }
@@ -3036,6 +3044,7 @@ html:-webkit-full-screen .app {
   align-items: center;
   justify-content: center;
   gap: 0.15rem;
+  min-width: 44px;
   min-height: 5.75rem;
   padding: 0.85rem 0.4rem;
   border: 1px solid rgba(255, 255, 255, 0.12);

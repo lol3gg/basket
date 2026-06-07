@@ -22,7 +22,15 @@ export const COACH_COUNT = 8;
 export const BANDITORE_COACH_ID = 1;
 /** @deprecated Usa BANDITORE_COACH_ID (coach id 1) */
 export const BANDITORE_KEY = 'banditore';
-export const BANDITORE_PASSWORD = 'carletti';
+/** Password banditore — imposta VITE_BANDITORE_PASSWORD in .env (default solo dev). */
+export const BANDITORE_PASSWORD = import.meta.env.VITE_BANDITORE_PASSWORD || 'carletti';
+
+export class StorageQuotaError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'StorageQuotaError';
+  }
+}
 
 export function isBanditoreRole(coachId) {
   if (coachId === BANDITORE_KEY) return true;
@@ -138,12 +146,28 @@ function normalizeCoaches(coaches) {
 
 export function savePlayers(players) {
   if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(PLAYERS_STORAGE_KEY, JSON.stringify(normalizePlayers(players)));
+  try {
+    localStorage.setItem(PLAYERS_STORAGE_KEY, JSON.stringify(normalizePlayers(players)));
+  } catch (err) {
+    if (err?.name === 'QuotaExceededError') {
+      throw new StorageQuotaError(
+        'Memoria browser piena. Rimuovi alcune foto o usa "Reimposta giocatori default".',
+      );
+    }
+    throw err;
+  }
 }
 
 export function saveCoaches(coaches) {
   if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(COACHES_STORAGE_KEY, JSON.stringify(normalizeCoaches(coaches)));
+  try {
+    localStorage.setItem(COACHES_STORAGE_KEY, JSON.stringify(normalizeCoaches(coaches)));
+  } catch (err) {
+    if (err?.name === 'QuotaExceededError') {
+      throw new StorageQuotaError('Memoria browser piena. Impossibile salvare i dati.');
+    }
+    throw err;
+  }
 }
 
 export function loadSavedPlayers() {

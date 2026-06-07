@@ -26,8 +26,11 @@ import {
   getDefaultSetup,
 } from '../src/asta-setup.js';
 import {
-  getMaxBidAmount,
+  validateBidAmount,
+  getBidValidationError,
+  getPurchasedPlayerCount,
   getRemainingRosterSlots,
+  getMaxBidAmount,
   buildMobileBidOptions,
   buildBidOptions,
   canAffordBid,
@@ -136,8 +139,17 @@ section('Budget e offerte (300 crediti, 6 posti in rosa)');
 const coachFullBudget = makeCoach(2, 'Coach A', 300);
 assert(INITIAL_BUDGET === 300, 'INITIAL_BUDGET = 300');
 assert(ROSTER_SLOTS === 6, '6 giocatori per allenatore (48÷8)');
-assert(getRemainingRosterSlots(coachFullBudget) === ROSTER_SLOTS, '6 posti liberi');
-assert(getMaxBidAmount(coachFullBudget) === 295, 'max bid con riserva = 295');
+assert(getPurchasedPlayerCount(coachFullBudget) === 0, '0 giocatori acquistati');
+assert(getRemainingRosterSlots(coachFullBudget) === 6, '6 posti rimasti');
+assert(getMaxBidAmount(coachFullBudget) === 295, 'maxOfferta = 300 - (6-1) = 295');
+
+const coachReserveExample = makeCoach(4, 'Coach C', 3, [
+  { id: 10, name: 'P', role: 'G', price: 297 },
+  { id: 11, name: 'Q', role: 'G', price: 1 },
+  { id: 12, name: 'R', role: 'G', price: 1 },
+]);
+assert(getRemainingRosterSlots(coachReserveExample) === 3, '3 posti rimasti con 3 acquistati');
+assert(getMaxBidAmount(coachReserveExample) === 1, 'maxOfferta = 3 - (3-1) = 1');
 
 const coachLow = makeCoach(3, 'Coach B', 3, [
   { id: 10, name: 'P', role: 'G', price: 290 },
@@ -150,6 +162,24 @@ assert(getRemainingRosterSlots(coachLow) === 1, '1 posto rimasto');
 assert(getMaxBidAmount(coachLow) === 3, 'max bid = budget con 1 posto');
 assert(canAffordBid(coachLow, 3), 'può offrire 3');
 assert(!canAffordBid(coachLow, 4), 'non può offrire 4');
+
+section('validateBidAmount (Ably / UI)');
+{
+  const coach = makeCoach(2, 'Coach A', 3, [
+    { id: 1, name: 'A', role: 'G', price: 297 },
+    { id: 2, name: 'B', role: 'G', price: 1 },
+    { id: 3, name: 'C', role: 'G', price: 1 },
+    { id: 4, name: 'D', role: 'G', price: 1 },
+    { id: 5, name: 'E', role: 'G', price: 1 },
+  ]);
+  assert(validateBidAmount(coach, 3, 0, 1).ok, 'offerta al massimo consentito');
+  assert(!validateBidAmount(coach, 4, 0, 1).ok, 'blocca oltre maxOfferta');
+  assert(!validateBidAmount(coach, 1, 5, 1).ok, 'blocca sotto minimo rilancio');
+  const mobile = buildMobileBidOptions(0, coachFullBudget);
+  assert(mobile.options.every((o) => o.amount <= getMaxBidAmount(coachFullBudget)), 'mobile rispetta maxOfferta');
+  const desktop = buildBidOptions(0, coachFullBudget);
+  assert(desktop.options.every((o) => o.amount <= getMaxBidAmount(coachFullBudget)), 'desktop rispetta maxOfferta');
+}
 
 section('Pulsanti mobile (+1 +5 +10, no max)');
 const mobileOpts = buildMobileBidOptions(10, coachFullBudget);

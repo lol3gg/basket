@@ -2,17 +2,53 @@ import { BANDITORE_COACH_ID, getCoachDisplayName, getJoinedCoaches, ROSTER_SLOTS
 
 export { ROSTER_SLOTS } from './asta-setup.js';
 
-export function getRemainingRosterSlots(coach) {
-  const owned = coach?.players?.length ?? 0;
-  return Math.max(0, ROSTER_SLOTS - owned);
+export function getPurchasedPlayerCount(coach) {
+  return coach?.players?.length ?? 0;
 }
 
-/** Massimo offribile rispettando la riserva (1 cr. per ogni posto ancora da riempire). */
+/** postiRimasti = ROSTER_SLOTS (6) - giocatoriAcquistati */
+export function getRemainingRosterSlots(coach) {
+  return Math.max(0, ROSTER_SLOTS - getPurchasedPlayerCount(coach));
+}
+
+/**
+ * Credito minimo garantito — massima offerta consentita:
+ * maxOfferta = budget - (postiRimasti - 1)
+ */
 export function getMaxBidAmount(coach) {
   const budget = coach?.budget ?? 0;
   const postiRimasti = getRemainingRosterSlots(coach);
   if (postiRimasti === 0) return 0;
   return Math.max(0, budget - (postiRimasti - 1));
+}
+
+/** Validazione unica per UI, locale e Ably. */
+export function validateBidAmount(coach, amount, currentBid = 0, increment = 1) {
+  if (!coach || typeof amount !== 'number' || !Number.isFinite(amount)) {
+    return { ok: false, reason: 'no_coach' };
+  }
+  const minBid = Math.max(currentBid + increment, 1);
+  if (amount < minBid) {
+    return { ok: false, reason: 'too_low', minBid };
+  }
+  const postiRimasti = getRemainingRosterSlots(coach);
+  if (postiRimasti === 0) {
+    return { ok: false, reason: 'roster_full' };
+  }
+  const maxOfferta = getMaxBidAmount(coach);
+  if (amount > maxOfferta) {
+    return { ok: false, reason: 'reserve', maxOfferta, postiRimasti };
+  }
+  return { ok: true, maxOfferta, postiRimasti, minBid };
+}
+
+export function getBidValidationError(coach, amount, currentBid = 0, increment = 1) {
+  const result = validateBidAmount(coach, amount, currentBid, increment);
+  if (result.ok) return '';
+  if (result.reason === 'too_low') return 'Offerta troppo bassa.';
+  if (result.reason === 'reserve') return 'Riserva budget insufficiente per completare la rosa.';
+  if (result.reason === 'roster_full') return 'Rosa completa.';
+  return 'Offerta non valida.';
 }
 
 export function isBudgetMinimum(coach) {
@@ -26,10 +62,9 @@ export function isInBudgetReserve(coach) {
   return getMaxBidAmount(coach) < budget;
 }
 
-export function canAffordBid(coach, amount) {
+export function canAffordBid(coach, amount, currentBid = 0, increment = 1) {
   if (!coach || amount < 1) return false;
-  if (getRemainingRosterSlots(coach) === 0) return false;
-  return amount <= getMaxBidAmount(coach);
+  return validateBidAmount(coach, amount, currentBid, increment).ok;
 }
 
 export function buildMobileBidOptions(currentBid, coach) {

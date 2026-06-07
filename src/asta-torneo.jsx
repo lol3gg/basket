@@ -46,7 +46,7 @@ import {
 } from './asta-setup.js';
 import { buildRestartPlayerState, buildResetAuctionState, buildReAuctionPlayerState, samePlayerId, findPlayerById, disconnectCoachFromState } from './asta-logic.js';
 import { isAuctionComplete } from './exportAstaPdf.js';
-import { canAffordBid, applyForcedRosterAssignments, getUnbuyableAvailableCount, canForceAssignPlayers, maybeApplyForcedAssignments } from './asta-budget.js';
+import { applyForcedRosterAssignments, getUnbuyableAvailableCount, canForceAssignPlayers, maybeApplyForcedAssignments, validateBidAmount, getBidValidationError } from './asta-budget.js';
 import {
   AuctionUI,
   BanditoreEntryScreen,
@@ -120,10 +120,8 @@ function appendLog(state, text) {
 
 function applyBid(state, coachId, amount) {
   if (state.phase !== 'live' || !state.isRunning || !state.currentPlayer) return null;
-  const minBid = Math.max(state.currentBid + BID_INCREMENT, 1);
-  if (amount < minBid) return null;
   const coach = state.coaches.find((c) => c.id === coachId);
-  if (!coach || !canAffordBid(coach, amount)) return null;
+  if (!validateBidAmount(coach, amount, state.currentBid, BID_INCREMENT).ok) return null;
   return {
     ...state,
     currentBid: amount,
@@ -1032,13 +1030,9 @@ function AstaTorneoAbly() {
       return;
     }
     const coach = coaches.find((c) => c.id === coachId);
-    if (!coach || !canAffordBid(coach, amount)) {
-      setBidError('Riserva budget insufficiente per completare la rosa.');
-      return;
-    }
-    const minBid = Math.max(currentBid + BID_INCREMENT, 1);
-    if (amount < minBid) {
-      setBidError('Offerta troppo bassa.');
+    const error = getBidValidationError(coach, amount, currentBid, BID_INCREMENT);
+    if (error) {
+      setBidError(error);
       return;
     }
     setBidError('');

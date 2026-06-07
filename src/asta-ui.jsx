@@ -836,7 +836,9 @@ export function CoachMobileUI({
         {currentPlayer && <BasketballIcon className="mobile-stage-ball" size={48} />}
         {currentPlayer ? (
           <>
-            <p className="mobile-player-label">{isSettled ? 'Asta chiusa' : 'In asta'}</p>
+            <p className="mobile-player-label">
+              {isSettled ? 'Asta chiusa' : isReady ? 'Pronto per l\'asta' : 'In asta'}
+            </p>
             <div className="mobile-player-avatar">
               <PlayerAvatar player={currentPlayer} size="lg" />
             </div>
@@ -872,7 +874,9 @@ export function CoachMobileUI({
             <p className="muted">Attendi il prossimo giocatore</p>
           </div>
         )}
-        <p className={`mobile-status ${isLive ? 'live' : ''} ${isSettled ? 'settled' : ''}`}>{statusText}</p>
+        <p className={`mobile-status ${isLive ? 'live' : ''} ${isSettled ? 'settled' : ''} ${isReady ? 'ready' : ''}`}>
+          {statusText}
+        </p>
       </section>
 
       {isLive && currentPlayer && myCoach && (

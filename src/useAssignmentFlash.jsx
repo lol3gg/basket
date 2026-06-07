@@ -14,7 +14,8 @@ export function useAssignmentFlash({
 
   useEffect(() => {
     if (phase !== 'settled' || !currentPlayer?.id) {
-      if (phase !== 'settled') seenRef.current = null;
+      seenRef.current = null;
+      setFlash(null);
       return undefined;
     }
 

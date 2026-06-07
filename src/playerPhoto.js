@@ -1,5 +1,8 @@
 import { getCoachColor } from './asta-setup.js';
 
+const PHOTO_MAX = 200;
+const PHOTO_QUALITY = 0.7;
+
 export function getPlayerInitials(name) {
   const parts = (name || '').trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
@@ -9,6 +12,18 @@ export function getPlayerInitials(name) {
 
 export function getPlayerAvatarColor(playerId) {
   return getCoachColor(playerId || 1);
+}
+
+export function compressPhotoDataUrl(img) {
+  const canvas = document.createElement('canvas');
+  canvas.width = PHOTO_MAX;
+  canvas.height = PHOTO_MAX;
+  const ctx = canvas.getContext('2d');
+  const scale = Math.max(PHOTO_MAX / img.width, PHOTO_MAX / img.height);
+  const w = img.width * scale;
+  const h = img.height * scale;
+  ctx.drawImage(img, (PHOTO_MAX - w) / 2, (PHOTO_MAX - h) / 2, w, h);
+  return canvas.toDataURL('image/jpeg', PHOTO_QUALITY);
 }
 
 export function readPlayerPhotoFile(file) {
@@ -21,16 +36,11 @@ export function readPlayerPhotoFile(file) {
     reader.onload = () => {
       const img = new Image();
       img.onload = () => {
-        const max = 240;
-        const scale = Math.min(1, max / Math.max(img.width, img.height));
-        const w = Math.round(img.width * scale);
-        const h = Math.round(img.height * scale);
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.82));
+        try {
+          resolve(compressPhotoDataUrl(img));
+        } catch {
+          reject(new Error('Compressione fallita'));
+        }
       };
       img.onerror = () => reject(new Error('Immagine non valida'));
       img.src = reader.result;

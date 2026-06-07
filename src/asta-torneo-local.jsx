@@ -12,6 +12,7 @@ import {
   isBanditoreRole,
   isBanditoreConsole,
   joinCoachIntoState,
+  upsertSavedCoach,
   addSetupPlayer,
   isMobileDevice,
   getCoachDisplayName,
@@ -114,6 +115,8 @@ export function AstaTorneoLocal() {
       return;
     }
     setCoaches(nextCoaches);
+    const joined = nextCoaches.find((c) => c.id === id);
+    if (joined) upsertSavedCoach(joined);
     localStorage.setItem(COACH_STORAGE_KEY, String(id));
     setCoachId(id);
     pushLog(`${trimmedName} si è unito all'asta.`);

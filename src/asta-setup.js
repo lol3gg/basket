@@ -1,6 +1,9 @@
 export const INITIAL_BUDGET = 300;
 export const AUCTION_SECONDS = 15;
 export const CLOSE_SECONDS = 6;
+export const PLAYERS_STORAGE_KEY = 'asta-giocatori';
+export const COACHES_STORAGE_KEY = 'asta-allenatori';
+/** @deprecated Migrato su PLAYERS_STORAGE_KEY */
 export const SETUP_STORAGE_KEY = 'asta_setup_v2';
 
 export const COACH_COLORS = [
@@ -106,17 +109,97 @@ export function getDemoSetup() {
   };
 }
 
-function stripPlayerPhoto(p) {
-  if (!p || typeof p !== 'object') return p;
-  const { photo, ...rest } = p;
-  return rest;
+function normalizePlayer(p) {
+  if (!p || typeof p !== 'object' || !Number.isFinite(Number(p.id))) return null;
+  return {
+    id: Number(p.id),
+    name: typeof p.name === 'string' ? p.name : `Giocatore ${p.id}`,
+    role: p.role || 'G',
+    team: p.team || '—',
+    ...(p.photo ? { photo: p.photo } : {}),
+  };
 }
 
-function normalizeSetup(parsed) {
-  const players = Array.isArray(parsed?.players)
-    ? parsed.players.map(stripPlayerPhoto)
-    : [];
-  return { players, coaches: [] };
+function normalizePlayers(players) {
+  return Array.isArray(players) ? players.map(normalizePlayer).filter(Boolean) : [];
+}
+
+function normalizeCoachEntry(c) {
+  if (!c || typeof c !== 'object' || !Number.isFinite(Number(c.id))) return null;
+  const id = Number(c.id);
+  if (id === BANDITORE_COACH_ID) return null;
+  const name = typeof c.name === 'string' ? c.name.trim() : '';
+  return { id, name: name || `Allenatore ${id}` };
+}
+
+function normalizeCoaches(coaches) {
+  return Array.isArray(coaches) ? coaches.map(normalizeCoachEntry).filter(Boolean) : [];
+}
+
+export function savePlayers(players) {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(PLAYERS_STORAGE_KEY, JSON.stringify(normalizePlayers(players)));
+}
+
+export function saveCoaches(coaches) {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(COACHES_STORAGE_KEY, JSON.stringify(normalizeCoaches(coaches)));
+}
+
+export function loadSavedPlayers() {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const raw = localStorage.getItem(PLAYERS_STORAGE_KEY);
+    if (raw === null) return null;
+    return normalizePlayers(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+export function loadSavedCoaches() {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const raw = localStorage.getItem(COACHES_STORAGE_KEY);
+    if (raw === null) return null;
+    return normalizeCoaches(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+export function clearPersistedSetup() {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.removeItem(PLAYERS_STORAGE_KEY);
+  localStorage.removeItem(COACHES_STORAGE_KEY);
+  localStorage.removeItem(SETUP_STORAGE_KEY);
+  localStorage.removeItem('asta_setup_v1');
+}
+
+export function resetPersistedSetupToDefault() {
+  clearPersistedSetup();
+  return getDefaultSetup();
+}
+
+export function upsertSavedCoach(coach) {
+  const entry = normalizeCoachEntry(coach);
+  if (!entry) return;
+  const saved = loadSavedCoaches() || [];
+  const next = [...saved.filter((c) => c.id !== entry.id), entry];
+  saveCoaches(next);
+}
+
+function migrateLegacySetupPlayers() {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    localStorage.removeItem('asta_setup_v1');
+    const raw = localStorage.getItem(SETUP_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return normalizePlayers(parsed?.players);
+  } catch {
+    return null;
+  }
 }
 
 export function getEmptySetup() {
@@ -134,19 +217,30 @@ export const RESET_ASTA_CONFIRM =
 
 export function loadSetup() {
   try {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem('asta_setup_v1');
+    const savedPlayers = loadSavedPlayers();
+    if (savedPlayers !== null) {
+      return {
+        players: savedPlayers,
+        coaches: loadSavedCoaches() || [],
+      };
     }
-    const raw = localStorage.getItem(SETUP_STORAGE_KEY);
-    if (!raw) return getDefaultSetup();
-    return normalizeSetup(JSON.parse(raw));
+
+    const migrated = migrateLegacySetupPlayers();
+    if (migrated !== null) {
+      const setup = { players: migrated, coaches: loadSavedCoaches() || [] };
+      saveSetup(setup);
+      return setup;
+    }
+
+    return getDefaultSetup();
   } catch {
     return getDefaultSetup();
   }
 }
 
 export function saveSetup(setup) {
-  localStorage.setItem(SETUP_STORAGE_KEY, JSON.stringify(normalizeSetup(setup)));
+  savePlayers(setup?.players || []);
+  saveCoaches(setup?.coaches || []);
 }
 
 export function createSetupCoach(existingCoaches, fields = {}) {
@@ -206,14 +300,7 @@ export function addSetupPlayer(setupPlayers, fields = {}) {
 
 export function buildInitialPlayers() {
   const setup = loadSetup();
-  return setup.players.map((p) => ({
-    id: p.id,
-    name: p.name,
-    role: p.role,
-    team: p.team || '—',
-    status: 'available',
-    coachId: null,
-  }));
+  return setup.players.map(setupPlayerToGamePlayer);
 }
 
 export function createSetupPlayer(existingPlayers, fields = {}) {

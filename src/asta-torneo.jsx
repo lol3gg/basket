@@ -36,6 +36,7 @@ import {
   isBanditoreRole,
   isBanditoreConsole,
   joinCoachIntoState,
+  upsertSavedCoach,
   addSetupPlayer,
   createJoinRequestId,
   isMobileDevice,
@@ -265,6 +266,8 @@ function AstaTorneoAbly() {
         return;
       }
       publishState(appendLog({ ...state, coaches: result.coaches }, `${trimmedName} si è unito all'asta`));
+      const joined = result.coaches.find((c) => c.id === result.coachId);
+      if (joined) upsertSavedCoach(joined);
       channel.publish('join-ack', { requestId, coachId: result.coachId }).catch(console.error);
     };
 

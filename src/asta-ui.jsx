@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   getCoachColor,
   INITIAL_BUDGET,
@@ -9,6 +9,7 @@ import {
   createSetupPlayer,
   getDemoSetup,
   getEmptySetup,
+  resetPersistedSetupToDefault,
   getAppBaseUrl,
   buildShareInviteMessage,
   isMobileDevice,
@@ -1058,6 +1059,15 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '', gamePlayers = []
     };
   });
   const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
+  const skipAutoSaveRef = useRef(true);
+
+  useEffect(() => {
+    if (skipAutoSaveRef.current) {
+      skipAutoSaveRef.current = false;
+      return;
+    }
+    saveSetup(draft);
+  }, [draft]);
 
   const updatePlayer = (id, field, value) => {
     setDraft((d) => ({
@@ -1108,8 +1118,19 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '', gamePlayers = []
       'Eliminare tutti i giocatori dalla lista?\n\nDovrai aggiungerli di nuovo manualmente o usare Demo.',
     )) return;
     const empty = getEmptySetup();
+    skipAutoSaveRef.current = true;
     setDraft(empty);
     saveSetup(empty);
+    onSave(empty);
+  };
+
+  const resetToDefaults = () => {
+    if (!window.confirm(
+      'Reimpostare i dati salvati nel browser?\n\nVerranno cancellati giocatori, foto e nomi allenatori salvati in locale.',
+    )) return;
+    const empty = resetPersistedSetupToDefault();
+    skipAutoSaveRef.current = true;
+    setDraft(empty);
     onSave(empty);
   };
 
@@ -1142,9 +1163,13 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '', gamePlayers = []
                 Elimina tutti i giocatori
               </button>
             )}
+            <button type="button" className="btn-secondary setup-reset-default-btn" onClick={resetToDefaults}>
+              Reimposta giocatori default
+            </button>
           </div>
           <p className="setup-note muted">
             Lista vuota all&apos;inizio. Aggiungi i giocatori uno a uno, oppure Demo per 16 giocatori finti.
+            Modifiche e foto salvate automaticamente nel browser.
           </p>
           <ul className="setup-list players">
             {draft.players.length === 0 && (

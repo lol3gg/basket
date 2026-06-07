@@ -1257,12 +1257,14 @@ export function AuctionUI({
   onRemoveCoach,
   onStartSinglePlayer,
   onReassignPlayer,
+  onReAuctionPlayer,
 }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
   const [joinBanner, setJoinBanner] = useState(null);
   const [reassigningId, setReassigningId] = useState(null);
   const [reassignCoachId, setReassignCoachId] = useState('');
+  const [playerSearch, setPlayerSearch] = useState('');
   const stageRef = useRef(null);
 
   const isAuctioneer = isBanditoreRole(coachId);
@@ -1275,17 +1277,24 @@ export function AuctionUI({
   const isSettled = phase === 'settled';
   const isPaused = phase === 'paused';
   const isLive = phase === 'live' && isRunning;
+  const isReady = phase === 'live' && !isRunning && Boolean(currentPlayer) && !isSettled;
   const progress = Math.round((assignedPlayers.length / players.length) * 100) || 0;
   const totalSpent = joinedCoaches.reduce((s, c) => s + (INITIAL_BUDGET - c.budget), 0);
   const statusLabel = isSettled
     ? 'In attesa conferma'
     : isPaused
       ? 'In pausa'
-      : isRunning
-        ? 'Asta in corso'
-        : 'In attesa';
+      : isReady
+        ? 'Pronto'
+        : isRunning
+          ? 'Asta in corso'
+          : 'In attesa';
   const availableCount = players.filter((p) => p.status === 'available').length;
   const canConfirmNext = isSettled;
+  const playerSearchQuery = playerSearch.trim().toLowerCase();
+  const filteredPlayers = playerSearchQuery
+    ? players.filter((p) => p.name.toLowerCase().includes(playerSearchQuery))
+    : players;
 
   const handleExportRosters = () => {
     exportRostersPdf({ stanzaCode, coaches });
@@ -1313,9 +1322,26 @@ export function AuctionUI({
   };
 
   const scrollToStage = () => {
+    setActiveTab('overview');
     requestAnimationFrame(() => {
       stageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
+  };
+
+  const getPlayerAuctionPrice = (playerId) => {
+    const player = players.find((p) => p.id === playerId);
+    if (!player?.coachId) return 0;
+    const owner = coaches.find((c) => c.id === player.coachId);
+    return owner?.players.find((rp) => rp.id === playerId)?.price ?? 0;
+  };
+
+  const confirmReAuction = (player) => {
+    const owner = coaches.find((c) => c.id === player.coachId);
+    const price = getPlayerAuctionPrice(player.id);
+    const msg = `Sei sicuro? ${player.name} verrà rimesso in asta e ${getCoachDisplayName(owner)} riavrà ${price} crediti.`;
+    if (!window.confirm(msg)) return;
+    onReAuctionPlayer?.(player.id);
+    scrollToStage();
   };
 
   useAuctionBeep({
@@ -1377,7 +1403,7 @@ export function AuctionUI({
           type="button"
           className="btn-cta"
           onClick={onStartAuction}
-          disabled={phase === 'live'}
+          disabled={isLive}
         >
           Avvia
         </button>
@@ -1429,7 +1455,7 @@ export function AuctionUI({
         <StatCard label="Disponibili" value={availablePlayers.length} sub={`su ${players.length}`} />
         <StatCard label="Assegnati" value={assignedPlayers.length} accent />
         <StatCard label="Offerta attuale" value={currentBid} sub="crediti" accent />
-        <StatCard label="Timer" value={isSettled ? '—' : `${timer}s`} sub={isSettled ? 'conferma' : isPaused ? 'in pausa' : isLive ? 'asta' : 'fermo'} />
+        <StatCard label="Timer" value={isSettled ? '—' : isReady ? '—' : `${timer}s`} sub={isSettled ? 'conferma' : isReady ? 'pronto' : isPaused ? 'in pausa' : isLive ? 'asta' : 'fermo'} />
         <StatCard label="Spesi totali" value={totalSpent} sub="crediti lega" />
       </section>
 
@@ -1482,6 +1508,14 @@ export function AuctionUI({
               phase={phase}
               winnerName={leadingCoach ? getCoachDisplayName(leadingCoach) : undefined}
             />
+            {isReady && isAuctioneer && (
+              <div className="ready-actions">
+                <p className="stage-hint ready-hint">Giocatore in palco — avvia il timer quando sei pronto</p>
+                <button type="button" className="btn-cta btn-start-stage" onClick={onStartAuction}>
+                  Avvia asta
+                </button>
+              </div>
+            )}
             {isSettled && isAuctioneer && (
               <div className="settled-actions">
                 <button type="button" className="btn-cta btn-confirm-stage" onClick={onConfirmNext} disabled={!canConfirmNext}>
@@ -1536,7 +1570,10 @@ export function AuctionUI({
             {!isAuctioneer && isPaused && (
               <p className="stage-hint muted">Asta in pausa — in attesa del banditore</p>
             )}
-            {!isAuctioneer && !isLive && !isSettled && !isPaused && (
+            {!isAuctioneer && isReady && (
+              <p className="stage-hint muted">Giocatore in palco — in attesa che il banditore avvii l&apos;asta…</p>
+            )}
+            {!isAuctioneer && !isLive && !isSettled && !isPaused && !isReady && (
               <p className="stage-hint muted">In attesa che il banditore avvii l&apos;asta…</p>
             )}
           </div>
@@ -1718,6 +1755,21 @@ export function AuctionUI({
                 </button>
               </div>
             )}
+            <div className="players-search-wrap">
+              <input
+                type="search"
+                className="players-search-input"
+                placeholder="Cerca giocatore per nome…"
+                value={playerSearch}
+                onChange={(e) => setPlayerSearch(e.target.value)}
+                aria-label="Cerca giocatore"
+              />
+              {playerSearchQuery && (
+                <span className="players-search-count muted">
+                  {filteredPlayers.length} di {players.length}
+                </span>
+              )}
+            </div>
             <table className="data-table">
               <thead>
                 <tr>
@@ -1730,7 +1782,14 @@ export function AuctionUI({
                 </tr>
               </thead>
               <tbody>
-                {players.map((p) => {
+                {filteredPlayers.length === 0 && (
+                  <tr>
+                    <td colSpan={isAuctioneer ? 6 : 5} className="muted players-search-empty">
+                      Nessun giocatore corrisponde a &quot;{playerSearch.trim()}&quot;
+                    </td>
+                  </tr>
+                )}
+                {filteredPlayers.map((p) => {
                   const owner = coaches.find((c) => c.id === p.coachId);
                   const editable = isAuctioneer && p.status === 'available';
                   return (
@@ -1776,7 +1835,7 @@ export function AuctionUI({
                               <button
                                 type="button"
                                 className="btn-secondary btn-table-action"
-                                disabled={isLive || p.id === currentPlayer?.id}
+                                disabled={isLive || (currentPlayer?.id === p.id && phase === 'live')}
                                 onClick={() => {
                                   onStartSinglePlayer?.(p.id);
                                   scrollToStage();
@@ -1786,46 +1845,56 @@ export function AuctionUI({
                               </button>
                             )}
                             {p.status === 'assigned' && (
-                              reassigningId === p.id ? (
-                                <div className="reassign-inline">
-                                  <select
-                                    className="players-table-select reassign-select"
-                                    value={reassignCoachId}
-                                    onChange={(e) => setReassignCoachId(e.target.value)}
-                                  >
-                                    {reassignableCoaches.map((c) => (
-                                      <option key={c.id} value={c.id}>
-                                        {getCoachDisplayName(c)}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <button
-                                    type="button"
-                                    className="btn-cta btn-reassign-confirm"
-                                    onClick={() => confirmReassign(p.id)}
-                                    disabled={!reassignCoachId}
-                                    aria-label="Conferma riassegnazione"
-                                  >
-                                    ✓
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="btn-ghost btn-reassign-cancel"
-                                    onClick={cancelReassign}
-                                    aria-label="Annulla riassegnazione"
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              ) : (
+                              <>
                                 <button
                                   type="button"
-                                  className="btn-ghost btn-ghost-sm"
-                                  onClick={() => openReassign(p.id)}
+                                  className="btn-secondary btn-table-action btn-reauction"
+                                  disabled={isLive}
+                                  onClick={() => confirmReAuction(p)}
                                 >
-                                  Riassegna
+                                  Riasta
                                 </button>
-                              )
+                                {reassigningId === p.id ? (
+                                  <div className="reassign-inline">
+                                    <select
+                                      className="players-table-select reassign-select"
+                                      value={reassignCoachId}
+                                      onChange={(e) => setReassignCoachId(e.target.value)}
+                                    >
+                                      {reassignableCoaches.map((c) => (
+                                        <option key={c.id} value={c.id}>
+                                          {getCoachDisplayName(c)}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <button
+                                      type="button"
+                                      className="btn-cta btn-reassign-confirm"
+                                      onClick={() => confirmReassign(p.id)}
+                                      disabled={!reassignCoachId}
+                                      aria-label="Conferma riassegnazione"
+                                    >
+                                      ✓
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn-ghost btn-reassign-cancel"
+                                      onClick={cancelReassign}
+                                      aria-label="Annulla riassegnazione"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="btn-ghost btn-ghost-sm"
+                                    onClick={() => openReassign(p.id)}
+                                  >
+                                    Riassegna
+                                  </button>
+                                )}
+                              </>
                             )}
                             {editable && (
                               <button

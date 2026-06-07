@@ -42,7 +42,7 @@ import {
   isMobileDevice,
   getCoachDisplayName,
 } from './asta-setup.js';
-import { buildRestartPlayerState, buildResetAuctionState, disconnectCoachFromState } from './asta-logic.js';
+import { buildRestartPlayerState, buildResetAuctionState, buildReAuctionPlayerState, disconnectCoachFromState } from './asta-logic.js';
 import { isAuctionComplete } from './exportAstaPdf.js';
 import { canAffordBid, maybeApplyForcedAssignments } from './asta-budget.js';
 import {
@@ -688,6 +688,18 @@ function AstaTorneoAbly() {
       return;
     }
 
+    if (state.currentPlayer && state.phase === 'live' && !state.isRunning) {
+      publishState(appendLog({
+        ...state,
+        isRunning: true,
+        timer: AUCTION_SECONDS,
+        currentBid: 0,
+        currentBidder: null,
+      }, `Asta avviata: ${state.currentPlayer.name}`));
+      setActionError('');
+      return;
+    }
+
     const first = state.players.filter((p) => p.status === 'available')[0] ?? null;
     if (!first) {
       setActionError('Nessun giocatore disponibile.');
@@ -710,7 +722,8 @@ function AstaTorneoAbly() {
   const handleStartSinglePlayer = useCallback((playerId) => {
     if (!isAuctioneer) return;
     const state = gameStateRef.current;
-    if (state.phase === 'live') return;
+    if (state.isRunning) return;
+    if (state.phase === 'settled') return;
     const player = state.players.find((p) => p.id === playerId);
     if (!player || player.status !== 'available') return;
     let next = {
@@ -719,11 +732,23 @@ function AstaTorneoAbly() {
       currentBid: 0,
       currentBidder: null,
       phase: 'live',
-      isRunning: true,
+      isRunning: false,
       timer: AUCTION_SECONDS,
     };
-    next = appendLog(next, `Asta avviata: ${player.name}`);
+    next = appendLog(next, `${player.name} in palco — pronto per l'asta`);
     publishState(next);
+    setActionError('');
+  }, [isAuctioneer, publishState]);
+
+  const handleReAuctionPlayer = useCallback((playerId) => {
+    if (!isAuctioneer) return;
+    const result = buildReAuctionPlayerState(gameStateRef.current, playerId);
+    if (!result) return;
+    const { state: next, price, coach } = result;
+    publishState(appendLog(
+      next,
+      `${next.currentPlayer.name} rimesso in asta — ${getCoachDisplayName(coach)} ha riavuto ${price} cr.`,
+    ));
     setActionError('');
   }, [isAuctioneer, publishState]);
 
@@ -941,6 +966,7 @@ function AstaTorneoAbly() {
         onRemoveCoach={handleRemoveCoach}
         onStartSinglePlayer={handleStartSinglePlayer}
         onReassignPlayer={handleReassignPlayer}
+        onReAuctionPlayer={handleReAuctionPlayer}
       />
     </>
   );

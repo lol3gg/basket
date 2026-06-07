@@ -17,7 +17,7 @@ import {
   isMobileDevice,
   getCoachDisplayName,
 } from './asta-setup.js';
-import { buildRestartPlayerState, buildResetAuctionState, removeCoachFromState } from './asta-logic.js';
+import { buildRestartPlayerState, buildResetAuctionState, buildReAuctionPlayerState, removeCoachFromState } from './asta-logic.js';
 import { isAuctionComplete } from './exportAstaPdf.js';
 import { canAffordBid, maybeApplyForcedAssignments } from './asta-budget.js';
 import { AuctionUI, BanditoreEntryScreen, CoachEntryScreen, CoachMobileUI, FinalResultsScreen, SetupScreen } from './asta-ui.jsx';
@@ -306,6 +306,16 @@ export function AstaTorneoLocal() {
       return;
     }
 
+    if (currentPlayer && phase === 'live' && !isRunning) {
+      setCurrentBid(0);
+      setCurrentBidder(null);
+      setTimer(AUCTION_SECONDS);
+      setIsRunning(true);
+      pushLog(`Asta avviata: ${currentPlayer.name}`);
+      setActionError('');
+      return;
+    }
+
     const first = players.filter((p) => p.status === 'available')[0] ?? null;
     if (!first) {
       setActionError('Nessun giocatore disponibile.');
@@ -323,16 +333,34 @@ export function AstaTorneoLocal() {
 
   const handleStartSinglePlayer = (playerId) => {
     if (!isAuctioneer) return;
-    if (phase === 'live') return;
+    if (isRunning) return;
+    if (phase === 'settled') return;
     const player = players.find((p) => p.id === playerId);
     if (!player || player.status !== 'available') return;
     setCurrentPlayer(player);
     setCurrentBid(0);
     setCurrentBidder(null);
     setPhase('live');
-    setIsRunning(true);
+    setIsRunning(false);
     setTimer(AUCTION_SECONDS);
-    pushLog(`Asta avviata: ${player.name}`);
+    pushLog(`${player.name} in palco — pronto per l'asta`);
+    setActionError('');
+  };
+
+  const handleReAuctionPlayer = (playerId) => {
+    if (!isAuctioneer) return;
+    const result = buildReAuctionPlayerState(stateRef.current, playerId);
+    if (!result) return;
+    const { state: next, price, coach } = result;
+    setCoaches(next.coaches);
+    setPlayers(next.players);
+    setCurrentPlayer(next.currentPlayer);
+    setCurrentBid(next.currentBid);
+    setCurrentBidder(next.currentBidder);
+    setPhase(next.phase);
+    setIsRunning(next.isRunning);
+    setTimer(next.timer);
+    pushLog(`${next.currentPlayer.name} rimesso in asta — ${getCoachDisplayName(coach)} ha riavuto ${price} cr.`);
     setActionError('');
   };
 
@@ -582,6 +610,7 @@ export function AstaTorneoLocal() {
       onRemoveCoach={handleRemoveCoach}
       onStartSinglePlayer={handleStartSinglePlayer}
       onReassignPlayer={handleReassignPlayer}
+      onReAuctionPlayer={handleReAuctionPlayer}
     />
   );
 }

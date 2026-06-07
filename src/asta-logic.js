@@ -87,6 +87,50 @@ export function buildResetAuctionState(state) {
   };
 }
 
+/** Rimette un giocatore assegnato in asta (senza avvio timer) e restituisce i crediti. */
+export function buildReAuctionPlayerState(state, playerId) {
+  const player = state.players.find((p) => p.id === playerId);
+  if (!player || player.status !== 'assigned' || !player.coachId) return null;
+
+  const coachId = player.coachId;
+  const coach = state.coaches.find((c) => c.id === coachId);
+  if (!coach) return null;
+
+  const rosterEntry = coach.players.find((rp) => rp.id === playerId);
+  const price = rosterEntry?.price ?? 0;
+
+  const coaches = state.coaches.map((c) => {
+    if (c.id !== coachId) return c;
+    return {
+      ...c,
+      budget: c.budget + price,
+      players: c.players.filter((rp) => rp.id !== playerId),
+    };
+  });
+
+  const players = state.players.map((p) => (
+    p.id === playerId ? { ...p, status: 'available', coachId: null } : p
+  ));
+
+  const refreshedPlayer = players.find((p) => p.id === playerId);
+
+  return {
+    state: {
+      ...state,
+      coaches,
+      players,
+      currentPlayer: refreshedPlayer,
+      currentBid: 0,
+      currentBidder: null,
+      phase: 'live',
+      isRunning: false,
+      timer: AUCTION_SECONDS,
+    },
+    price,
+    coach,
+  };
+}
+
 /** Annulla l'assegnazione e prepara lo stesso giocatore per una nuova asta. */
 export function buildRestartPlayerState(state) {
   const player = state.currentPlayer;

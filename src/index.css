@@ -1707,6 +1707,65 @@ body::after {
   margin-bottom: 0.75rem;
 }
 
+.players-search-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.players-search-input {
+  flex: 1;
+  min-width: 12rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  color: inherit;
+  font-size: 0.9rem;
+}
+
+.players-search-input:focus {
+  outline: none;
+  border-color: rgba(212, 175, 55, 0.55);
+}
+
+.players-search-count {
+  font-size: 0.75rem;
+}
+
+.players-search-empty {
+  text-align: center;
+  padding: 1.25rem !important;
+}
+
+.ready-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.ready-hint {
+  margin: 0;
+  text-align: center;
+}
+
+.btn-start-stage {
+  width: 100%;
+  max-width: 20rem;
+  padding: 0.85rem 1.5rem;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.btn-reauction {
+  border-color: rgba(212, 175, 55, 0.45);
+}
+
 .players-table-actions {
   min-width: 11rem;
 }

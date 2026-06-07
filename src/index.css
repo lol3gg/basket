@@ -1696,6 +1696,15 @@ body::after {
   color: var(--orange);
 }
 
+.team-roster-count {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
 .team-roster {
   list-style: none;
   margin: 0;

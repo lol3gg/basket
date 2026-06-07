@@ -8,6 +8,11 @@ import {
   splitPlayerName,
   createSetupPlayer,
   getDemoSetup,
+  DEMO_PLAYER_COUNT,
+  PLAYER_COUNT,
+  COACH_COUNT,
+  ROSTER_SLOTS,
+  buildRosterSlotList,
   getEmptySetup,
   resetPersistedSetupToDefault,
   getAppBaseUrl,
@@ -28,7 +33,6 @@ import { BasketballIcon } from './BasketballDecor.jsx';
 import { buildCoachRankings, exportAstaPdf, exportRostersPdf } from './exportAstaPdf.js';
 import { getPlayerInitials, getPlayerAvatarColor, readPlayerPhotoFile } from './playerPhoto.js';
 import {
-  ROSTER_SLOTS,
   buildBidOptions,
   buildMobileBidOptions,
   getMaxBidAmount,
@@ -264,7 +268,7 @@ function CoachCard({ coach, isLeading, isOffline }) {
           <span className="coach-name">{displayName}</span>
           <span className="coach-budget">{coach.budget} cr. rimasti</span>
         </div>
-        <span className="coach-pill">{coach.players.length} gioc.</span>
+        <span className="coach-pill">{coach.players.length}/{ROSTER_SLOTS}</span>
         {budgetMin && <span className="coach-budget-min-badge">Budget minimo</span>}
       </div>
       <div className="budget-bar">
@@ -1128,6 +1132,12 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '', gamePlayers = []
   };
 
   const loadDemo = () => {
+    if (
+      draft.players.length > DEMO_PLAYER_COUNT
+      && !window.confirm(
+        `Hai ${draft.players.length} giocatori. La demo ne carica ${DEMO_PLAYER_COUNT} e sostituisce la lista. Continuare?`,
+      )
+    ) return;
     const demo = getDemoSetup();
     setDraft(demo);
     saveSetup(demo);
@@ -1147,7 +1157,7 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '', gamePlayers = []
 
   const resetToDefaults = () => {
     if (!window.confirm(
-      'Reimpostare i dati salvati nel browser?\n\nVerranno cancellati giocatori, foto e nomi allenatori salvati in locale.',
+      `Ripristinare la lista ufficiale dei ${PLAYER_COUNT} giocatori?\n\nI nomi e le foto personalizzati andranno sostituiti con quelli del torneo.`,
     )) return;
     const empty = resetPersistedSetupToDefault();
     skipAutoSaveRef.current = true;
@@ -1170,7 +1180,9 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '', gamePlayers = []
         <section className="dash-panel setup-players-panel">
           <div className="panel-head setup-players-head">
             <h2 className="panel-title">Giocatori in asta</h2>
-            <span className="panel-count">{draft.players.length} totali</span>
+            <span className="panel-count">
+              {draft.players.length} / {PLAYER_COUNT} totali
+            </span>
           </div>
           <div className="setup-players-toolbar">
             <button type="button" className="btn-secondary" onClick={() => setShowAddPlayerModal(true)}>
@@ -1185,14 +1197,22 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '', gamePlayers = []
               </button>
             )}
             <button type="button" className="btn-secondary setup-reset-default-btn" onClick={resetToDefaults}>
-              Reimposta giocatori default
+              Ripristina lista ufficiale (48)
             </button>
           </div>
           {storageError && <div className="alert setup-storage-alert">{storageError}</div>}
           <p className="setup-note muted">
-            Lista vuota all&apos;inizio. Aggiungi i giocatori uno a uno, oppure Demo per 16 giocatori finti.
+            Torneo: <strong>{PLAYER_COUNT} giocatori</strong>, <strong>{COACH_COUNT} allenatori</strong>,{' '}
+            <strong>{ROSTER_SLOTS} giocatori ciascuno</strong> in rosa (divisione uguale).
             Modifiche e foto salvate automaticamente nel browser.
           </p>
+          {draft.players.length > 0 && draft.players.length !== PLAYER_COUNT && (
+            <div className="alert setup-count-alert" role="status">
+              Attenzione: servono esattamente {PLAYER_COUNT} giocatori per {COACH_COUNT} allenatori
+              ({ROSTER_SLOTS} a testa). Mancano {Math.max(0, PLAYER_COUNT - draft.players.length)} o
+              ne hai {draft.players.length - PLAYER_COUNT} in più.
+            </div>
+          )}
           <ul className="setup-list players">
             {draft.players.length === 0 && (
               <li className="setup-empty muted">Nessun giocatore — usa + Aggiungi giocatore o Demo.</li>
@@ -1248,6 +1268,7 @@ export function SetupScreen({ onSave, onClose, stanzaCode = '', gamePlayers = []
 
 export function AuctionUI({
   coachId,
+  isAuctioneer: isAuctioneerProp,
   stanzaCode = '',
   onChangeCoach,
   connected,
@@ -1290,7 +1311,7 @@ export function AuctionUI({
   const [playerSearch, setPlayerSearch] = useState('');
   const stageRef = useRef(null);
 
-  const isAuctioneer = isBanditoreRole(coachId);
+  const isAuctioneer = isAuctioneerProp ?? isBanditoreRole(coachId);
   const joinedCoaches = getJoinedCoaches(coaches);
   const myCoach = isAuctioneer ? null : coaches.find((c) => c.id === coachId);
   const availablePlayers = players.filter((p) => p.status === 'available');
@@ -1479,7 +1500,7 @@ export function AuctionUI({
       )}
 
       <section className="stats-row">
-        <StatCard label="Disponibili" value={availablePlayers.length} sub={`su ${players.length}`} />
+        <StatCard label="Disponibili" value={availablePlayers.length} sub={`su ${players.length} · ${ROSTER_SLOTS}/allenatore`} />
         <StatCard label="Assegnati" value={assignedPlayers.length} accent />
         <StatCard label="Offerta attuale" value={currentBid} sub="crediti" accent />
         <StatCard label="Timer" value={isSettled ? '—' : isReady ? '—' : `${timer}s`} sub={isSettled ? 'conferma' : isReady ? 'pronto' : isPaused ? 'in pausa' : isLive ? 'asta' : 'fermo'} />
@@ -1680,14 +1701,15 @@ export function AuctionUI({
                   />
                 </div>
                 <ul className="roster-list">
-                  {myCoach.players.map((p) => (
-                    <li key={p.id} className="roster-slot filled">
-                      <span className="roster-name">{p.name}</span>
-                      <span className="roster-meta">{p.role} · {p.price} cr.</span>
-                    </li>
-                  ))}
-                  {Array.from({ length: Math.max(0, ROSTER_SLOTS - myCoach.players.length) }).map((_, i) => (
-                    <li key={`e-${i}`} className="roster-slot empty">+ Slot libero</li>
+                  {buildRosterSlotList(myCoach.players).map((slot, i) => (
+                    slot.filled ? (
+                      <li key={slot.player.id} className="roster-slot filled">
+                        <span className="roster-name">{slot.player.name}</span>
+                        <span className="roster-meta">{slot.player.role} · {slot.player.price} cr.</span>
+                      </li>
+                    ) : (
+                      <li key={`empty-${i}`} className="roster-slot empty">+ Slot libero</li>
+                    )
                   ))}
                 </ul>
               </>
@@ -1770,18 +1792,19 @@ export function AuctionUI({
                 <div className="team-card-head">
                   <span className="coach-num sm">{c.id}</span>
                   <span className="team-name">{getCoachDisplayName(c)}</span>
+                  <span className="team-roster-count">{c.players.length}/{ROSTER_SLOTS}</span>
                   <span className="team-budget">{c.budget} cr.</span>
                 </div>
                 <ul className="team-roster">
-                  {c.players.length === 0 && <li className="roster-slot empty">Nessun giocatore</li>}
-                  {c.players.map((p) => (
-                    <li key={p.id} className="roster-slot filled sm">
-                      <span>{p.name}</span>
-                      <span className="muted">{p.role} · {p.price}</span>
-                    </li>
-                  ))}
-                  {Array.from({ length: Math.max(0, ROSTER_SLOTS - c.players.length) }).map((_, i) => (
-                    <li key={`t-${i}`} className="roster-slot empty sm">—</li>
+                  {buildRosterSlotList(c.players).map((slot, i) => (
+                    slot.filled ? (
+                      <li key={slot.player.id} className="roster-slot filled sm">
+                        <span>{slot.player.name}</span>
+                        <span className="muted">{slot.player.role} · {slot.player.price}</span>
+                      </li>
+                    ) : (
+                      <li key={`empty-${i}`} className="roster-slot empty sm">—</li>
+                    )
                   ))}
                 </ul>
               </div>
@@ -1838,7 +1861,7 @@ export function AuctionUI({
                   const owner = coaches.find((c) => c.id === p.coachId);
                   const editable = isAuctioneer && p.status === 'available';
                   return (
-                    <tr key={p.id} className={currentPlayer?.id === p.id ? 'row-active' : ''}>
+                    <tr key={p.id} className={samePlayerId(currentPlayer?.id, p.id) ? 'row-active' : ''}>
                       <td>{p.id}</td>
                       <td>
                         {editable ? (
@@ -1880,10 +1903,13 @@ export function AuctionUI({
                               <button
                                 type="button"
                                 className="btn-secondary btn-table-action"
-                                disabled={isLive || (currentPlayer?.id === p.id && phase === 'live')}
+                                disabled={
+                                  isLive
+                                  || (phase === 'live' && currentPlayer && samePlayerId(currentPlayer.id, p.id))
+                                }
                                 onClick={() => {
-                                  onStartSinglePlayer?.(p.id);
-                                  scrollToStage();
+                                  const ok = onStartSinglePlayer?.(p.id);
+                                  if (ok !== false) scrollToStage();
                                 }}
                               >
                                 Metti in asta

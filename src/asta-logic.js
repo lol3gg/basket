@@ -14,6 +14,8 @@ function findPlayerById(players, playerId) {
   return (players || []).find((p) => samePlayerId(p.id, playerId));
 }
 
+export { findPlayerById };
+
 function findCoachOwningPlayer(state, playerId) {
   const player = findPlayerById(state.players, playerId);
   if (player?.coachId != null) {

@@ -1,6 +1,9 @@
 export const INITIAL_BUDGET = 300;
 export const AUCTION_SECONDS = 15;
 export const CLOSE_SECONDS = 6;
+export const PLAYERS_LIST_VERSION_KEY = 'asta-giocatori-version';
+/** Incrementa quando cambia la rosa ufficiale — forza aggiornamento nomi salvati. */
+export const OFFICIAL_ROSTER_VERSION = 1;
 export const PLAYERS_STORAGE_KEY = 'asta-giocatori';
 export const COACHES_STORAGE_KEY = 'asta-allenatori';
 /** @deprecated Migrato su PLAYERS_STORAGE_KEY */
@@ -17,13 +20,26 @@ export const COACH_COLORS = [
   '#C5A028',
 ];
 
-export const PLAYER_COUNT = 16;
+export const PLAYER_COUNT = 48;
+export const DEMO_PLAYER_COUNT = 16;
 export const COACH_COUNT = 8;
+/** Giocatori in rosa per allenatore: 48 ÷ 8 = 6 */
+export const ROSTER_SLOTS = 6;
+
+/** Sempre esattamente ROSTER_SLOTS righe (giocatori + slot vuoti). */
+export function buildRosterSlotList(players) {
+  const owned = (players || []).slice(0, ROSTER_SLOTS);
+  const slots = owned.map((player) => ({ filled: true, player }));
+  for (let i = owned.length; i < ROSTER_SLOTS; i += 1) {
+    slots.push({ filled: false, player: null });
+  }
+  return slots;
+}
 export const BANDITORE_COACH_ID = 1;
 /** @deprecated Usa BANDITORE_COACH_ID (coach id 1) */
 export const BANDITORE_KEY = 'banditore';
 /** Password banditore — imposta VITE_BANDITORE_PASSWORD in .env (default solo dev). */
-export const BANDITORE_PASSWORD = import.meta.env.VITE_BANDITORE_PASSWORD || 'carletti';
+export const BANDITORE_PASSWORD = import.meta.env?.VITE_BANDITORE_PASSWORD || 'carletti';
 
 export class StorageQuotaError extends Error {
   constructor(message) {
@@ -101,13 +117,73 @@ export function joinCoachIntoState(coaches, requestedId, name, budget = INITIAL_
   return { coaches: [...list, newCoach], coachId: nextId };
 }
 
+/** Rosa ufficiale torneo — 48 giocatori */
+export const DEFAULT_PLAYER_NAMES = [
+  'Galavotti Alex',
+  'Girelli Federico',
+  'Diana Pasquale',
+  'Leonardo Zolfanelli',
+  'Gianmarco Campana',
+  'Andrea Tasselli',
+  'Giacomo Matteucci',
+  'Thomas Galavotti',
+  'Francesco Giangaspro',
+  'Giovanni Ferri',
+  'Giacomo Gulini',
+  'Gianmarco Rossi',
+  'Enrico Ortolani',
+  'Enea Ciccolini',
+  'Alberto Rossi',
+  'Matteo Moro',
+  'Leonardo Bernardini',
+  'Filippo Falasconi',
+  'Denny Buttarini',
+  'Lorenzo Cardinali',
+  'Richard Riminucci',
+  'Angelini Diego',
+  'Leonardo Lulaj',
+  'Lorenzo Tiberi',
+  'Andrea Scardacchi',
+  'Lorenzo Cleri',
+  'Tommaso Pollastri',
+  'Jonathan Foglietta',
+  'Vincenzo Altieri',
+  'Elia Cappellacci',
+  'Niccolò Ciancamerla',
+  'Lorenzo Catani',
+  'Tommaso Vignaroli',
+  'Edoardo Monceri',
+  'Tommaso Olivi',
+  'Alessandro Baldassarri',
+  'Edoardo Macciaroní',
+  'Rodolfo Rombaldoni',
+  'Andrea Meloni',
+  'Giuseppe Violini',
+  'Willi Pazzaglia',
+  'Francesco Zappetti',
+  'Pietro Rossi',
+  'Tommaso Tancini',
+  'Luca Gentilini',
+  'Federico Topi',
+  'Napoli',
+  'Kevin Lulaj',
+];
+
 export function getDefaultSetup() {
-  return { players: [], coaches: [] };
+  return {
+    players: DEFAULT_PLAYER_NAMES.map((name, i) => ({
+      id: i + 1,
+      name,
+      role: ['G', 'A', 'C'][i % 3],
+      team: '—',
+    })),
+    coaches: [],
+  };
 }
 
 export function getDemoSetup() {
   return {
-    players: Array.from({ length: PLAYER_COUNT }, (_, i) => ({
+    players: Array.from({ length: DEMO_PLAYER_COUNT }, (_, i) => ({
       id: i + 1,
       name: `Giocatore ${i + 1}`,
       role: ['G', 'A', 'C'][i % 3],
@@ -195,14 +271,72 @@ export function loadSavedCoaches() {
 export function clearPersistedSetup() {
   if (typeof localStorage === 'undefined') return;
   localStorage.removeItem(PLAYERS_STORAGE_KEY);
+  localStorage.removeItem(PLAYERS_LIST_VERSION_KEY);
   localStorage.removeItem(COACHES_STORAGE_KEY);
   localStorage.removeItem(SETUP_STORAGE_KEY);
   localStorage.removeItem('asta_setup_v1');
 }
 
+function getSavedRosterVersion() {
+  try {
+    if (typeof localStorage === 'undefined') return 0;
+    return Number(localStorage.getItem(PLAYERS_LIST_VERSION_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function saveRosterVersion(version = OFFICIAL_ROSTER_VERSION) {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(PLAYERS_LIST_VERSION_KEY, String(version));
+}
+
+function isPlaceholderPlayerName(name) {
+  return /^Giocatore\s+\d+$/i.test(String(name || '').trim());
+}
+
+function isPlaceholderRoster(players) {
+  if (!Array.isArray(players) || players.length === 0) return true;
+  return players.some((p) => isPlaceholderPlayerName(p.name));
+}
+
+/** Applica i nomi ufficiali per id, mantenendo foto e ruoli salvati. */
+export function mergeOfficialRoster(savedPlayers) {
+  const defaults = getDefaultSetup().players;
+  const byId = new Map((savedPlayers || []).map((p) => [Number(p.id), p]));
+  return defaults.map((official) => {
+    const prev = byId.get(official.id);
+    if (!prev) return official;
+    return {
+      ...official,
+      name: official.name,
+      role: prev.role || official.role,
+      team: prev.team || official.team,
+      ...(prev.photo ? { photo: prev.photo } : {}),
+    };
+  });
+}
+
+function needsOfficialRosterMigration(savedPlayers) {
+  if (getSavedRosterVersion() < OFFICIAL_ROSTER_VERSION) return true;
+  if (!Array.isArray(savedPlayers) || savedPlayers.length !== PLAYER_COUNT) return true;
+  if (isPlaceholderRoster(savedPlayers)) return true;
+  return false;
+}
+
+function persistOfficialRoster(players, coaches = []) {
+  const setup = { players, coaches };
+  savePlayers(players);
+  saveCoaches(coaches);
+  saveRosterVersion(OFFICIAL_ROSTER_VERSION);
+  return setup;
+}
+
 export function resetPersistedSetupToDefault() {
   clearPersistedSetup();
-  return getDefaultSetup();
+  const defaults = getDefaultSetup();
+  persistOfficialRoster(defaults.players, defaults.coaches);
+  return defaults;
 }
 
 export function upsertSavedCoach(coach) {
@@ -242,23 +376,28 @@ export const RESET_ASTA_CONFIRM =
 export function loadSetup() {
   try {
     const savedPlayers = loadSavedPlayers();
-    if (savedPlayers !== null) {
-      return {
-        players: savedPlayers,
-        coaches: loadSavedCoaches() || [],
-      };
+    const savedCoaches = loadSavedCoaches() || [];
+
+    if (savedPlayers !== null && savedPlayers.length > 0) {
+      if (needsOfficialRosterMigration(savedPlayers)) {
+        return persistOfficialRoster(mergeOfficialRoster(savedPlayers), savedCoaches);
+      }
+      return { players: savedPlayers, coaches: savedCoaches };
     }
 
     const migrated = migrateLegacySetupPlayers();
-    if (migrated !== null) {
-      const setup = { players: migrated, coaches: loadSavedCoaches() || [] };
-      saveSetup(setup);
-      return setup;
+    if (migrated !== null && migrated.length > 0) {
+      if (needsOfficialRosterMigration(migrated)) {
+        return persistOfficialRoster(mergeOfficialRoster(migrated), savedCoaches);
+      }
+      return persistOfficialRoster(migrated, savedCoaches);
     }
 
-    return getDefaultSetup();
+    const defaults = getDefaultSetup();
+    return persistOfficialRoster(defaults.players, defaults.coaches);
   } catch {
-    return getDefaultSetup();
+    const defaults = getDefaultSetup();
+    return { players: defaults.players, coaches: defaults.coaches };
   }
 }
 
@@ -342,7 +481,7 @@ export function createSetupPlayer(existingPlayers, fields = {}) {
 
 export function mergeSetupIntoPlayers(existingPlayers, setupPlayers) {
   return setupPlayers.map((sp) => {
-    const prev = existingPlayers.find((p) => p.id === sp.id);
+    const prev = existingPlayers.find((p) => Number(p.id) === Number(sp.id));
     if (prev) {
       return {
         ...prev,
@@ -362,6 +501,18 @@ export function mergeSetupIntoPlayers(existingPlayers, setupPlayers) {
       ...(sp.photo ? { photo: sp.photo } : {}),
     };
   });
+}
+
+/** Unisce i giocatori salvati in localStorage nello stato asta (fonte di verità banditore). */
+export function syncPlayersFromStorage(gameState) {
+  const setup = loadSetup();
+  if (!setup.players?.length) return gameState;
+  const players = mergeSetupIntoPlayers(gameState?.players || [], setup.players);
+  let { currentPlayer } = gameState || {};
+  if (currentPlayer) {
+    currentPlayer = players.find((p) => Number(p.id) === Number(currentPlayer.id)) ?? currentPlayer;
+  }
+  return { ...gameState, players, currentPlayer };
 }
 
 export function splitPlayerName(name) {

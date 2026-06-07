@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
-import { INITIAL_BUDGET, BANDITORE_COACH_ID, getCoachDisplayName, getJoinedCoaches } from './asta-setup.js';
+import { INITIAL_BUDGET, BANDITORE_COACH_ID, getCoachDisplayName, getJoinedCoaches, ROSTER_SLOTS, buildRosterSlotList } from './asta-setup.js';
 
 const PDF_ORANGE = [232, 82, 42];
 const PDF_DARK = [18, 18, 18];
@@ -164,9 +164,11 @@ function drawCoachRosterTable(doc, coach, startY) {
   doc.text(`Totale speso: ${spent} cr.`, MARGIN + 70, y);
   y += 8;
 
-  const rows = coach.players?.length
-    ? coach.players.map((p) => [p.name, p.role, String(p.price)])
-    : [['—', '—', '0']];
+  const rows = buildRosterSlotList(coach.players).map((slot) => (
+    slot.filled
+      ? [slot.player.name, slot.player.role, String(slot.player.price)]
+      : ['—', '—', '—']
+  ));
 
   autoTable(doc, {
     startY: y,

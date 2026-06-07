@@ -1,7 +1,6 @@
-import { BANDITORE_COACH_ID, getCoachDisplayName, getJoinedCoaches } from './asta-setup.js';
+import { BANDITORE_COACH_ID, getCoachDisplayName, getJoinedCoaches, ROSTER_SLOTS } from './asta-setup.js';
 
-/** Posti in rosa per ogni allenatore */
-export const ROSTER_SLOTS = 5;
+export { ROSTER_SLOTS } from './asta-setup.js';
 
 export function getRemainingRosterSlots(coach) {
   const owned = coach?.players?.length ?? 0;

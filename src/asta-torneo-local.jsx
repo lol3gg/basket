@@ -17,7 +17,7 @@ import {
   isMobileDevice,
   getCoachDisplayName,
 } from './asta-setup.js';
-import { buildRestartPlayerState, buildResetAuctionState, buildReAuctionPlayerState, samePlayerId, removeCoachFromState } from './asta-logic.js';
+import { buildRestartPlayerState, buildResetAuctionState, buildReAuctionPlayerState, samePlayerId, findPlayerById, removeCoachFromState } from './asta-logic.js';
 import { isAuctionComplete } from './exportAstaPdf.js';
 import { canAffordBid, applyForcedRosterAssignments, getUnbuyableAvailableCount, canForceAssignPlayers, maybeApplyForcedAssignments } from './asta-budget.js';
 import { AuctionUI, BanditoreEntryScreen, CoachEntryScreen, CoachMobileUI, FinalResultsScreen, SetupScreen } from './asta-ui.jsx';
@@ -91,6 +91,11 @@ export function AstaTorneoLocal() {
       setResultsDismissed(false);
     }
   }, [players, phase, isRunning]);
+
+  useEffect(() => {
+    if (!isAuctioneer || showEntry) return;
+    setPlayers((prev) => mergeSetupIntoPlayers(prev, loadSetup().players));
+  }, [isAuctioneer, showEntry]);
 
   const joinRoom = ({ stanza, name, role }) => {
     const normalized = stanza.trim().toUpperCase();
@@ -243,6 +248,13 @@ export function AstaTorneoLocal() {
   };
 
   const handleLoadDemo = () => {
+    const currentCount = players.length;
+    if (
+      currentCount > DEMO_PLAYER_COUNT
+      && !window.confirm(
+        `Hai ${currentCount} giocatori configurati. La demo ne carica solo ${DEMO_PLAYER_COUNT} e sostituisce la lista salvata. Continuare?`,
+      )
+    ) return;
     const demo = getDemoSetup();
     saveSetup(demo);
     setPlayers(demo.players.map((p) => ({
@@ -254,7 +266,7 @@ export function AstaTorneoLocal() {
       coachId: null,
     })));
     setCoaches([]);
-    pushLog('Dati demo caricati (16 giocatori).');
+    pushLog(`Dati demo caricati (${DEMO_PLAYER_COUNT} giocatori).`);
     setActionError('');
   };
 
@@ -332,11 +344,20 @@ export function AstaTorneoLocal() {
   };
 
   const handleStartSinglePlayer = (playerId) => {
-    if (!isAuctioneer) return;
-    if (isRunning) return;
-    if (phase === 'settled') return;
-    const player = players.find((p) => p.id === playerId);
-    if (!player || player.status !== 'available') return;
+    if (!isAuctioneer) {
+      setActionError('Sessione banditore non valida. Rientra come banditore.');
+      return false;
+    }
+    const snapshot = stateRef.current;
+    if (snapshot.isRunning) {
+      setActionError('Metti in pausa l\'asta prima di selezionare un altro giocatore.');
+      return false;
+    }
+    const player = findPlayerById(snapshot.players, playerId);
+    if (!player || player.status !== 'available') {
+      setActionError('Giocatore non disponibile per l\'asta.');
+      return false;
+    }
     setCurrentPlayer(player);
     setCurrentBid(0);
     setCurrentBidder(null);
@@ -345,6 +366,7 @@ export function AstaTorneoLocal() {
     setTimer(AUCTION_SECONDS);
     pushLog(`${player.name} in palco — pronto per l'asta`);
     setActionError('');
+    return true;
   };
 
   const handleReAuctionPlayer = (playerId) => {
@@ -648,6 +670,7 @@ export function AstaTorneoLocal() {
 
   const sharedProps = {
     coachId,
+    isAuctioneer,
     onChangeCoach: leaveRoom,
     connected: true,
     connectedLabel: `Locale · ${stanzaCode || LOCAL_STANZA}`,

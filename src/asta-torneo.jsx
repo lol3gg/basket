@@ -29,6 +29,8 @@ import {
   loadSetup,
   mergeSetupIntoPlayers,
   getDemoSetup,
+  syncPlayersFromStorage,
+  DEMO_PLAYER_COUNT,
   RESET_ASTA_CONFIRM,
   INITIAL_BUDGET,
   BANDITORE_COACH_ID,
@@ -42,7 +44,7 @@ import {
   isMobileDevice,
   getCoachDisplayName,
 } from './asta-setup.js';
-import { buildRestartPlayerState, buildResetAuctionState, buildReAuctionPlayerState, samePlayerId, disconnectCoachFromState } from './asta-logic.js';
+import { buildRestartPlayerState, buildResetAuctionState, buildReAuctionPlayerState, samePlayerId, findPlayerById, disconnectCoachFromState } from './asta-logic.js';
 import { isAuctionComplete } from './exportAstaPdf.js';
 import { canAffordBid, applyForcedRosterAssignments, getUnbuyableAvailableCount, canForceAssignPlayers, maybeApplyForcedAssignments } from './asta-budget.js';
 import {
@@ -77,6 +79,7 @@ function buildInitialState() {
     coaches: [],
     players: buildInitialPlayers(),
     log: [{ text: 'Asta pronta. Aggiungi giocatori dal Setup o carica la demo.', timestamp: Date.now() }],
+    stateVersion: 0,
   };
 }
 
@@ -107,6 +110,7 @@ function sanitizeGameState(raw) {
     coaches,
     players,
     log: Array.isArray(raw.log) ? raw.log.filter((e) => e && typeof e.text === 'string') : [],
+    stateVersion: typeof raw.stateVersion === 'number' ? raw.stateVersion : 0,
   };
 }
 
@@ -181,6 +185,7 @@ function AstaTorneoAbly() {
   const joinAttemptsRef = useRef(0);
   const coachRegisteredRef = useRef(false);
   const lastStateAtRef = useRef(Date.now());
+  const rosterSyncedRef = useRef(false);
 
   const isAuctioneer = isBanditoreConsole(coachId, isBanditoreSessionVerified());
   isAuctioneerRef.current = isAuctioneer;
@@ -191,24 +196,58 @@ function AstaTorneoAbly() {
     isRunning, coaches, players, log,
   } = gameState;
 
-  gameStateRef.current = gameState;
-
   useEffect(() => {
     if (!isAuctionComplete(players, phase, isRunning)) {
       setResultsDismissed(false);
     }
   }, [players, phase, isRunning]);
 
+  // Applica rosa ufficiale salvata (localStorage) allo stato live appena entra il banditore
+  useEffect(() => {
+    if (!isAuctioneer || showRoomEntry || !stanzaCode) {
+      rosterSyncedRef.current = false;
+      return;
+    }
+    if (rosterSyncedRef.current) return;
+    rosterSyncedRef.current = true;
+    publishState((state) => syncPlayersFromStorage(state));
+  }, [isAuctioneer, showRoomEntry, stanzaCode, publishState]);
+
   const applyState = useCallback((data) => {
     const sanitized = sanitizeGameState(data);
     if (!sanitized) return;
+    const incomingVersion = sanitized.stateVersion || 0;
+    const currentVersion = gameStateRef.current.stateVersion || 0;
+    if (incomingVersion > 0) {
+      if (incomingVersion <= currentVersion) {
+        if (import.meta.env.DEV) {
+          console.log('[state] applyState ignorato (stale)', { incomingVersion, currentVersion });
+        }
+        return;
+      }
+    } else if (currentVersion > 0) {
+      if (import.meta.env.DEV) {
+        console.log('[state] applyState ignorato (legacy stale)', { currentVersion });
+      }
+      return;
+    }
     lastStateAtRef.current = Date.now();
     setAuctioneerStale(false);
     gameStateRef.current = sanitized;
     setGameState(sanitized);
   }, []);
 
-  const publishState = useCallback((next) => {
+  const publishState = useCallback((nextOrUpdater) => {
+    const prev = gameStateRef.current;
+    let base = typeof nextOrUpdater === 'function' ? nextOrUpdater(prev) : nextOrUpdater;
+    if (base === prev) return;
+    if (isAuctioneerRef.current) {
+      base = syncPlayersFromStorage(base);
+    }
+    const next = {
+      ...base,
+      stateVersion: (prev.stateVersion || 0) + 1,
+    };
     lastStateAtRef.current = Date.now();
     gameStateRef.current = next;
     setGameState(next);
@@ -314,10 +353,15 @@ function AstaTorneoAbly() {
 
     channel.history({ limit: 10 }).then((result) => {
       const lastState = result.items.find((m) => m.name === 'state');
+      if (isAuctioneerRef.current) {
+        const base = lastState?.data
+          ? (sanitizeGameState(lastState.data) || buildInitialState())
+          : buildInitialState();
+        publishState(syncPlayersFromStorage(base));
+        return;
+      }
       if (lastState?.data) {
         applyState(lastState.data);
-      } else if (isAuctioneerRef.current) {
-        publishState(buildInitialState());
       }
     }).catch(console.error);
 
@@ -542,14 +586,16 @@ function AstaTorneoAbly() {
     }
 
     timerIntervalRef.current = setInterval(() => {
-      const state = gameStateRef.current;
-      const next = Math.max(0, state.timer - 1);
-      if (next === 0) {
-        clearInterval(timerIntervalRef.current);
-        handleAssign();
-        return;
-      }
-      publishState({ ...state, timer: next });
+      publishState((state) => {
+        if (state.phase !== 'live' || !state.isRunning || !state.currentPlayer) return state;
+        const nextTimer = Math.max(0, state.timer - 1);
+        if (nextTimer === 0) {
+          clearInterval(timerIntervalRef.current);
+          queueMicrotask(() => handleAssign());
+          return state;
+        }
+        return { ...state, timer: nextTimer };
+      });
     }, 1000);
 
     return () => clearInterval(timerIntervalRef.current);
@@ -623,7 +669,9 @@ function AstaTorneoAbly() {
       setPendingJoin(null);
       setJoinError('');
       setShowRoomEntry(true);
-      setGameState(buildInitialState());
+      const reset = buildInitialState();
+      gameStateRef.current = reset;
+      setGameState(reset);
       return;
     }
     leaveAsCoachWithConfirm();
@@ -651,12 +699,19 @@ function AstaTorneoAbly() {
 
   const handleLoadDemo = () => {
     if (!isAuctioneer) return;
+    const currentCount = gameStateRef.current.players?.length ?? 0;
+    if (
+      currentCount > DEMO_PLAYER_COUNT
+      && !window.confirm(
+        `Hai ${currentCount} giocatori configurati. La demo ne carica solo ${DEMO_PLAYER_COUNT} e sostituisce la lista salvata. Continuare?`,
+      )
+    ) return;
     const demo = getDemoSetup();
     saveSetup(demo);
     const state = gameStateRef.current;
     publishState(appendLog(
       { ...state, players: mergeSetupIntoPlayers([], demo.players) },
-      'Dati demo caricati (16 giocatori).',
+      `Dati demo caricati (${DEMO_PLAYER_COUNT} giocatori).`,
     ));
     setActionError('');
   };
@@ -760,24 +815,46 @@ function AstaTorneoAbly() {
   };
 
   const handleStartSinglePlayer = useCallback((playerId) => {
-    if (!isAuctioneer) return;
-    const state = gameStateRef.current;
-    if (state.isRunning) return;
-    if (state.phase === 'settled') return;
-    const player = state.players.find((p) => p.id === playerId);
-    if (!player || player.status !== 'available') return;
-    let next = {
-      ...state,
-      currentPlayer: player,
-      currentBid: 0,
-      currentBidder: null,
-      phase: 'live',
-      isRunning: false,
-      timer: AUCTION_SECONDS,
-    };
-    next = appendLog(next, `${player.name} in palco — pronto per l'asta`);
-    publishState(next);
-    setActionError('');
+    if (!isAuctioneer) {
+      setActionError('Sessione banditore non valida. Rientra come banditore.');
+      return false;
+    }
+
+    let placed = false;
+    publishState((state) => {
+      if (state.isRunning) {
+        setActionError('Metti in pausa l\'asta prima di selezionare un altro giocatore.');
+        return state;
+      }
+      const player = findPlayerById(state.players, playerId);
+      if (!player || player.status !== 'available') {
+        setActionError('Giocatore non disponibile per l\'asta.');
+        if (import.meta.env.DEV) {
+          console.warn('[Metti in asta] giocatore non trovato o non libero', {
+            playerId,
+            player,
+            phase: state.phase,
+          });
+        }
+        return state;
+      }
+      placed = true;
+      setActionError('');
+      return appendLog({
+        ...state,
+        currentPlayer: player,
+        currentBid: 0,
+        currentBidder: null,
+        phase: 'live',
+        isRunning: false,
+        timer: AUCTION_SECONDS,
+      }, `${player.name} in palco — pronto per l'asta`);
+    });
+
+    if (import.meta.env.DEV && placed) {
+      console.log('[Metti in asta] ok', { playerId, current: gameStateRef.current.currentPlayer?.name });
+    }
+    return placed;
   }, [isAuctioneer, publishState]);
 
   const handleReAuctionPlayer = useCallback((playerId) => {
@@ -1024,6 +1101,7 @@ function AstaTorneoAbly() {
 
   const sharedProps = {
     coachId,
+    isAuctioneer,
     onChangeCoach: isAuctioneer ? leaveRoom : leaveAsCoachWithConfirm,
     connected,
     connectedLabel: connected ? `Live · ${stanzaCode}` : 'Disconnesso',

@@ -88,6 +88,20 @@ export function anyCoachCanBid(coaches) {
   );
 }
 
+/** Giocatori liberi che nessun allenatore può acquistare in asta (max offerta < 1). */
+export function getUnbuyableAvailableCount(players, coaches) {
+  const available = (players || []).filter((p) => p.status === 'available');
+  if (available.length === 0 || anyCoachCanBid(coaches)) return 0;
+  return available.length;
+}
+
+export function canForceAssignPlayers(players, coaches) {
+  if (getUnbuyableAvailableCount(players, coaches) === 0) return false;
+  return getJoinedCoaches(coaches).some(
+    (c) => getRemainingRosterSlots(c) > 0 && c.budget >= 1,
+  );
+}
+
 function shuffle(arr) {
   const copy = [...arr];
   for (let i = copy.length - 1; i > 0; i -= 1) {

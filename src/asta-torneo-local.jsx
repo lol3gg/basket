@@ -19,7 +19,7 @@ import {
 } from './asta-setup.js';
 import { buildRestartPlayerState, buildResetAuctionState, buildReAuctionPlayerState, removeCoachFromState } from './asta-logic.js';
 import { isAuctionComplete } from './exportAstaPdf.js';
-import { canAffordBid, maybeApplyForcedAssignments } from './asta-budget.js';
+import { canAffordBid, applyForcedRosterAssignments, getUnbuyableAvailableCount, canForceAssignPlayers, maybeApplyForcedAssignments } from './asta-budget.js';
 import { AuctionUI, BanditoreEntryScreen, CoachEntryScreen, CoachMobileUI, FinalResultsScreen, SetupScreen } from './asta-ui.jsx';
 
 const COACH_STORAGE_KEY = 'asta_coach_id';
@@ -368,6 +368,46 @@ export function AstaTorneoLocal() {
     setActionError('');
   };
 
+  const handleForceAssignAll = () => {
+    if (!isAuctioneer) return;
+    const snapshot = stateRef.current;
+    const count = getUnbuyableAvailableCount(snapshot.players, snapshot.coaches);
+    if (count === 0) return;
+    if (!canForceAssignPlayers(snapshot.players, snapshot.coaches)) {
+      setActionError('Nessun allenatore ha crediti e posti liberi per l\'assegnazione forzata.');
+      return;
+    }
+    if (!window.confirm(
+      `Assegnare i giocatori rimanenti (${count}) a 1 credito ciascuno, in ordine casuale?`,
+    )) return;
+
+    const base = {
+      ...snapshot,
+      isRunning: false,
+      phase: 'idle',
+      currentPlayer: null,
+      currentBid: 0,
+      currentBidder: null,
+      timer: AUCTION_SECONDS,
+    };
+    const { state: forcedState, logLines } = applyForcedRosterAssignments(base);
+    if (logLines.length === 0) {
+      setActionError('Nessuna assegnazione possibile.');
+      return;
+    }
+    setPlayers(forcedState.players);
+    setCoaches(forcedState.coaches);
+    setCurrentPlayer(null);
+    setCurrentBid(0);
+    setCurrentBidder(null);
+    setPhase('idle');
+    setIsRunning(false);
+    setTimer(AUCTION_SECONDS);
+    logLines.forEach((text) => pushLog(text));
+    pushLog(`Assegnazione forzata completata (${logLines.length} giocatore/i a 1 cr.).`);
+    setActionError('');
+  };
+
   const handleReassignPlayer = (playerId, newCoachId) => {
     if (!isAuctioneer) return;
     const player = players.find((p) => p.id === playerId);
@@ -615,6 +655,7 @@ export function AstaTorneoLocal() {
       onStartSinglePlayer={handleStartSinglePlayer}
       onReassignPlayer={handleReassignPlayer}
       onReAuctionPlayer={handleReAuctionPlayer}
+      onForceAssignAll={handleForceAssignAll}
     />
   );
 }

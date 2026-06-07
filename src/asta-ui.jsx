@@ -31,6 +31,8 @@ import {
   ROSTER_SLOTS,
   buildBidOptions,
   getMaxBidAmount,
+  getUnbuyableAvailableCount,
+  canForceAssignPlayers,
   isBudgetMinimum,
   isInBudgetReserve,
 } from './asta-budget.js';
@@ -1272,6 +1274,7 @@ export function AuctionUI({
   onStartSinglePlayer,
   onReassignPlayer,
   onReAuctionPlayer,
+  onForceAssignAll,
 }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
@@ -1305,6 +1308,8 @@ export function AuctionUI({
           : 'In attesa';
   const availableCount = players.filter((p) => p.status === 'available').length;
   const canConfirmNext = isSettled;
+  const unbuyableCount = isAuctioneer ? getUnbuyableAvailableCount(players, coaches) : 0;
+  const canForceAssign = isAuctioneer && canForceAssignPlayers(players, coaches);
   const playerSearchQuery = playerSearch.trim().toLowerCase();
   const filteredPlayers = playerSearchQuery
     ? players.filter((p) => p.name.toLowerCase().includes(playerSearchQuery))
@@ -1482,6 +1487,24 @@ export function AuctionUI({
           <div className="progress-fill" style={{ width: `${progress}%` }} />
         </div>
       </div>
+
+      {isAuctioneer && unbuyableCount > 0 && (
+        <div className="force-assign-banner" role="alert">
+          <p className="force-assign-banner-text">
+            Attenzione: <strong>{unbuyableCount}</strong> giocatori non possono essere acquistati
+            da nessun allenatore. Il banditore può assegnarli manualmente a 1 credito con il
+            pulsante <strong>FORZA ASSEGNAZIONE</strong>.
+          </p>
+          <button
+            type="button"
+            className="btn-cta btn-force-assign"
+            onClick={onForceAssignAll}
+            disabled={!canForceAssign}
+          >
+            FORZA ASSEGNAZIONE
+          </button>
+        </div>
+      )}
 
       <div className="dash-main">
         <aside className="dash-panel coaches-sidebar">

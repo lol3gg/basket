@@ -44,7 +44,7 @@ import {
 } from './asta-setup.js';
 import { buildRestartPlayerState, buildResetAuctionState, buildReAuctionPlayerState, disconnectCoachFromState } from './asta-logic.js';
 import { isAuctionComplete } from './exportAstaPdf.js';
-import { canAffordBid, maybeApplyForcedAssignments } from './asta-budget.js';
+import { canAffordBid, applyForcedRosterAssignments, getUnbuyableAvailableCount, canForceAssignPlayers, maybeApplyForcedAssignments } from './asta-budget.js';
 import {
   AuctionUI,
   BanditoreEntryScreen,
@@ -797,6 +797,41 @@ function AstaTorneoAbly() {
     setActionError('');
   }, [isAuctioneer, publishState]);
 
+  const handleForceAssignAll = useCallback(() => {
+    if (!isAuctioneer) return;
+    const state = gameStateRef.current;
+    const count = getUnbuyableAvailableCount(state.players, state.coaches);
+    if (count === 0) return;
+    if (!canForceAssignPlayers(state.players, state.coaches)) {
+      setActionError('Nessun allenatore ha crediti e posti liberi per l\'assegnazione forzata.');
+      return;
+    }
+    if (!window.confirm(
+      `Assegnare i giocatori rimanenti (${count}) a 1 credito ciascuno, in ordine casuale?`,
+    )) return;
+
+    const snapshot = {
+      ...state,
+      isRunning: false,
+      phase: 'idle',
+      currentPlayer: null,
+      currentBid: 0,
+      currentBidder: null,
+      timer: AUCTION_SECONDS,
+    };
+    const { state: forcedState, logLines } = applyForcedRosterAssignments(snapshot);
+    if (logLines.length === 0) {
+      setActionError('Nessuna assegnazione possibile.');
+      return;
+    }
+    const next = appendLog(
+      logLines.reduce((s, text) => appendLog(s, text), forcedState),
+      `Assegnazione forzata completata (${logLines.length} giocatore/i a 1 cr.).`,
+    );
+    publishState(next);
+    setActionError('');
+  }, [isAuctioneer, publishState]);
+
   const handleReassignPlayer = useCallback((playerId, newCoachId) => {
     if (!isAuctioneer) return;
     const state = gameStateRef.current;
@@ -1017,6 +1052,7 @@ function AstaTorneoAbly() {
         onStartSinglePlayer={handleStartSinglePlayer}
         onReassignPlayer={handleReassignPlayer}
         onReAuctionPlayer={handleReAuctionPlayer}
+        onForceAssignAll={handleForceAssignAll}
       />
     </>
   );

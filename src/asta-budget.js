@@ -33,12 +33,22 @@ export function canAffordBid(coach, amount) {
   return amount <= getMaxBidAmount(coach);
 }
 
-export function buildMobileBidOptions(currentBid) {
-  return [
+export function buildMobileBidOptions(currentBid, coach) {
+  const maxBid = coach ? getMaxBidAmount(coach) : 0;
+  const minBid = Math.max(currentBid + 1, 1);
+  const inReserve = coach ? isInBudgetReserve(coach) : false;
+
+  if (!coach || getRemainingRosterSlots(coach) === 0 || maxBid < minBid) {
+    return { options: [], maxBid, inReserve };
+  }
+
+  const options = [
     { label: '+1', amount: Math.max(currentBid + 1, 1) },
     { label: '+5', amount: currentBid + 5 },
     { label: '+10', amount: currentBid + 10 },
-  ];
+  ].filter((o) => o.amount <= maxBid && o.amount >= minBid);
+
+  return { options, maxBid, inReserve };
 }
 
 export function buildBidOptions(currentBid, coach) {

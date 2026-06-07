@@ -30,6 +30,7 @@ import { getPlayerInitials, getPlayerAvatarColor, readPlayerPhotoFile } from './
 import {
   ROSTER_SLOTS,
   buildBidOptions,
+  buildMobileBidOptions,
   getMaxBidAmount,
   getUnbuyableAvailableCount,
   canForceAssignPlayers,
@@ -780,7 +781,7 @@ export function CoachMobileUI({
     maxTimer: AUCTION_SECONDS,
   });
 
-  const { options: bidAmounts, maxBid, inReserve } = buildBidOptions(currentBid, myCoach);
+  const { options: bidAmounts, maxBid, inReserve } = buildMobileBidOptions(currentBid, myCoach);
 
   const statusText = auctioneerStale && isLive
     ? 'In attesa del banditore…'

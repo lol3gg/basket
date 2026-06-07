@@ -3063,7 +3063,7 @@ html:-webkit-full-screen .app {
 
 .mobile-bid-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.55rem;
   padding: 0 0.25rem;
 }

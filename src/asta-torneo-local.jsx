@@ -17,7 +17,7 @@ import {
   isMobileDevice,
   getCoachDisplayName,
 } from './asta-setup.js';
-import { buildRestartPlayerState, buildResetAuctionState, buildReAuctionPlayerState, removeCoachFromState } from './asta-logic.js';
+import { buildRestartPlayerState, buildResetAuctionState, buildReAuctionPlayerState, samePlayerId, removeCoachFromState } from './asta-logic.js';
 import { isAuctionComplete } from './exportAstaPdf.js';
 import { canAffordBid, applyForcedRosterAssignments, getUnbuyableAvailableCount, canForceAssignPlayers, maybeApplyForcedAssignments } from './asta-budget.js';
 import { AuctionUI, BanditoreEntryScreen, CoachEntryScreen, CoachMobileUI, FinalResultsScreen, SetupScreen } from './asta-ui.jsx';
@@ -349,13 +349,47 @@ export function AstaTorneoLocal() {
 
   const handleReAuctionPlayer = (playerId) => {
     if (!isAuctioneer) return;
-    if (phase === 'settled') {
-      setActionError('Conferma l\'asta in corso prima di avviare una riasta.');
+    const snapshot = stateRef.current;
+
+    if (import.meta.env.DEV) {
+      console.log('[RIASTA] handleReAuctionPlayer — stato PRIMA', {
+        playerId,
+        phase: snapshot.phase,
+        player: snapshot.players.find((p) => samePlayerId(p.id, playerId)),
+      });
+    }
+
+    if (
+      snapshot.phase === 'settled'
+      && snapshot.currentPlayer
+      && samePlayerId(snapshot.currentPlayer.id, playerId)
+    ) {
+      setActionError('Conferma l\'asta di questo giocatore prima di riastarlo.');
       return;
     }
-    const result = buildReAuctionPlayerState(stateRef.current, playerId);
-    if (!result) return;
+
+    const result = buildReAuctionPlayerState(snapshot, playerId);
+    if (!result) {
+      setActionError('Impossibile riastare questo giocatore. Verifica che sia assegnato a un allenatore.');
+      if (import.meta.env.DEV) {
+        console.warn('[RIASTA] buildReAuctionPlayerState ha restituito null');
+      }
+      return;
+    }
+
     const { state: next, price, coach } = result;
+
+    if (import.meta.env.DEV) {
+      console.log('[RIASTA] handleReAuctionPlayer — stato DOPO', {
+        player: next.players.find((p) => samePlayerId(p.id, playerId)),
+        coachBudget: next.coaches.find((c) => samePlayerId(c.id, coach.id))?.budget,
+        currentPlayer: next.currentPlayer,
+        phase: next.phase,
+        isRunning: next.isRunning,
+        price,
+      });
+    }
+
     setCoaches(next.coaches);
     setPlayers(next.players);
     setCurrentPlayer(next.currentPlayer);

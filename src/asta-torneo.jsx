@@ -42,7 +42,7 @@ import {
   isMobileDevice,
   getCoachDisplayName,
 } from './asta-setup.js';
-import { buildRestartPlayerState, buildResetAuctionState, buildReAuctionPlayerState, disconnectCoachFromState } from './asta-logic.js';
+import { buildRestartPlayerState, buildResetAuctionState, buildReAuctionPlayerState, samePlayerId, disconnectCoachFromState } from './asta-logic.js';
 import { isAuctionComplete } from './exportAstaPdf.js';
 import { canAffordBid, applyForcedRosterAssignments, getUnbuyableAvailableCount, canForceAssignPlayers, maybeApplyForcedAssignments } from './asta-budget.js';
 import {
@@ -783,13 +783,46 @@ function AstaTorneoAbly() {
   const handleReAuctionPlayer = useCallback((playerId) => {
     if (!isAuctioneer) return;
     const state = gameStateRef.current;
-    if (state.phase === 'settled') {
-      setActionError('Conferma l\'asta in corso prima di avviare una riasta.');
+
+    if (import.meta.env.DEV) {
+      console.log('[RIASTA] handleReAuctionPlayer — stato PRIMA', {
+        playerId,
+        phase: state.phase,
+        player: state.players.find((p) => samePlayerId(p.id, playerId)),
+      });
+    }
+
+    if (
+      state.phase === 'settled'
+      && state.currentPlayer
+      && samePlayerId(state.currentPlayer.id, playerId)
+    ) {
+      setActionError('Conferma l\'asta di questo giocatore prima di riastarlo.');
       return;
     }
+
     const result = buildReAuctionPlayerState(state, playerId);
-    if (!result) return;
+    if (!result) {
+      setActionError('Impossibile riastare questo giocatore. Verifica che sia assegnato a un allenatore.');
+      if (import.meta.env.DEV) {
+        console.warn('[RIASTA] buildReAuctionPlayerState ha restituito null');
+      }
+      return;
+    }
+
     const { state: next, price, coach } = result;
+
+    if (import.meta.env.DEV) {
+      console.log('[RIASTA] handleReAuctionPlayer — stato DOPO', {
+        player: next.players.find((p) => samePlayerId(p.id, playerId)),
+        coachBudget: next.coaches.find((c) => samePlayerId(c.id, coach.id))?.budget,
+        currentPlayer: next.currentPlayer,
+        phase: next.phase,
+        isRunning: next.isRunning,
+        price,
+      });
+    }
+
     publishState(appendLog(
       next,
       `${next.currentPlayer.name} rimesso in asta — ${getCoachDisplayName(coach)} ha riavuto ${price} cr.`,

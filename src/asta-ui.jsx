@@ -36,6 +36,7 @@ import {
   isBudgetMinimum,
   isInBudgetReserve,
 } from './asta-budget.js';
+import { samePlayerId } from './asta-logic.js';
 
 const APP_TITLE = 'Asta Torneo Basket';
 const TABS = [
@@ -1348,14 +1349,16 @@ export function AuctionUI({
   };
 
   const getPlayerAuctionPrice = (playerId) => {
-    const player = players.find((p) => p.id === playerId);
-    if (!player?.coachId) return 0;
-    const owner = coaches.find((c) => c.id === player.coachId);
-    return owner?.players.find((rp) => rp.id === playerId)?.price ?? 0;
+    const player = players.find((p) => samePlayerId(p.id, playerId));
+    const owner = player?.coachId != null
+      ? coaches.find((c) => samePlayerId(c.id, player.coachId))
+      : coaches.find((c) => (c.players || []).some((rp) => samePlayerId(rp.id, playerId)));
+    return owner?.players?.find((rp) => samePlayerId(rp.id, playerId))?.price ?? 0;
   };
 
   const confirmReAuction = (player) => {
-    const owner = coaches.find((c) => c.id === player.coachId);
+    const owner = coaches.find((c) => samePlayerId(c.id, player.coachId))
+      ?? coaches.find((c) => (c.players || []).some((rp) => samePlayerId(rp.id, player.id)));
     const price = getPlayerAuctionPrice(player.id);
     const msg = `Sei sicuro? ${player.name} verrà rimesso in asta e ${getCoachDisplayName(owner)} riavrà ${price} crediti.`;
     if (!window.confirm(msg)) return;
@@ -1881,12 +1884,15 @@ export function AuctionUI({
                                 Metti in asta
                               </button>
                             )}
-                            {p.status === 'assigned' && (
+                            {(p.status === 'assigned' || owner) && (
                               <>
                                 <button
                                   type="button"
                                   className="btn-secondary btn-table-action btn-reauction"
-                                  disabled={isLive}
+                                  disabled={
+                                    isLive
+                                    || (isSettled && currentPlayer && samePlayerId(currentPlayer.id, p.id))
+                                  }
                                   onClick={() => confirmReAuction(p)}
                                 >
                                   Riasta

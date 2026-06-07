@@ -5,6 +5,32 @@ import {
   mergeSetupIntoPlayers,
 } from './asta-setup.js';
 
+export function samePlayerId(a, b) {
+  if (a == null || b == null) return false;
+  return Number(a) === Number(b);
+}
+
+function findPlayerById(players, playerId) {
+  return (players || []).find((p) => samePlayerId(p.id, playerId));
+}
+
+function findCoachOwningPlayer(state, playerId) {
+  const player = findPlayerById(state.players, playerId);
+  if (player?.coachId != null) {
+    const byCoachId = state.coaches.find((c) => samePlayerId(c.id, player.coachId));
+    if (byCoachId) return byCoachId;
+  }
+  return (state.coaches || []).find((c) =>
+    (c.players || []).some((rp) => samePlayerId(rp.id, playerId)),
+  );
+}
+
+function logReAuctionDebug(label, data) {
+  if (import.meta.env?.DEV) {
+    console.log(`[RIASTA] ${label}`, data);
+  }
+}
+
 /** Disconnette un allenatore (slot fisso) e ripristina i suoi giocatori. */
 export function disconnectCoachFromState(state, coachId, budget = INITIAL_BUDGET) {
   const coach = state.coaches.find((c) => c.id === coachId);
@@ -89,43 +115,81 @@ export function buildResetAuctionState(state) {
 
 /** Rimette un giocatore assegnato in asta (senza avvio timer) e restituisce i crediti. */
 export function buildReAuctionPlayerState(state, playerId) {
-  const player = state.players.find((p) => p.id === playerId);
-  if (!player || player.status !== 'assigned' || !player.coachId) return null;
+  logReAuctionDebug('input', {
+    playerId,
+    phase: state.phase,
+    player: findPlayerById(state.players, playerId),
+    coaches: state.coaches?.map((c) => ({
+      id: c.id,
+      budget: c.budget,
+      rosterIds: c.players?.map((p) => p.id),
+    })),
+  });
 
-  const coachId = player.coachId;
-  const coach = state.coaches.find((c) => c.id === coachId);
-  if (!coach) return null;
+  const player = findPlayerById(state.players, playerId);
+  if (!player) {
+    logReAuctionDebug('abort', 'giocatore non trovato');
+    return null;
+  }
 
-  const rosterEntry = coach.players.find((rp) => rp.id === playerId);
+  const onRoster = findCoachOwningPlayer(state, playerId);
+  const isAssigned = player.status === 'assigned' || Boolean(onRoster);
+  if (!isAssigned) {
+    logReAuctionDebug('abort', 'giocatore non assegnato');
+    return null;
+  }
+
+  const coach = onRoster;
+  if (!coach) {
+    logReAuctionDebug('abort', 'allenatore non trovato');
+    return null;
+  }
+
+  const coachId = coach.id;
+  const rosterEntry = (coach.players || []).find((rp) => samePlayerId(rp.id, playerId));
   const price = rosterEntry?.price ?? 0;
 
   const coaches = state.coaches.map((c) => {
-    if (c.id !== coachId) return c;
+    if (!samePlayerId(c.id, coachId)) return c;
     return {
       ...c,
       budget: c.budget + price,
-      players: c.players.filter((rp) => rp.id !== playerId),
+      players: (c.players || []).filter((rp) => !samePlayerId(rp.id, playerId)),
     };
   });
 
   const players = state.players.map((p) => (
-    p.id === playerId ? { ...p, status: 'available', coachId: null } : p
+    samePlayerId(p.id, playerId)
+      ? { ...p, status: 'available', coachId: null }
+      : p
   ));
 
-  const refreshedPlayer = players.find((p) => p.id === playerId);
+  const refreshedPlayer = findPlayerById(players, playerId);
+
+  const nextState = {
+    ...state,
+    coaches,
+    players,
+    currentPlayer: refreshedPlayer,
+    currentBid: 0,
+    currentBidder: null,
+    phase: 'live',
+    isRunning: false,
+    timer: AUCTION_SECONDS,
+  };
+
+  logReAuctionDebug('output', {
+    price,
+    coachId,
+    player: refreshedPlayer,
+    coachBudget: coaches.find((c) => samePlayerId(c.id, coachId))?.budget,
+    currentPlayer: nextState.currentPlayer,
+    phase: nextState.phase,
+    isRunning: nextState.isRunning,
+  });
 
   return {
-    state: {
-      ...state,
-      coaches,
-      players,
-      currentPlayer: refreshedPlayer,
-      currentBid: 0,
-      currentBidder: null,
-      phase: 'live',
-      isRunning: false,
-      timer: AUCTION_SECONDS,
-    },
+    state: nextState,
     price,
     coach,
   };

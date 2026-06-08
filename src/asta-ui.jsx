@@ -218,16 +218,13 @@ function SetupPhotoButton({ player, onPhoto, onRemove }) {
   );
 }
 
-function LeadingCoachBanner({ coach, bid, className = '' }) {
+function LeadingCoachBanner({ coach, bid }) {
   if (!coach) return null;
   const color = getCoachColor(coach.id);
   const name = getCoachDisplayName(coach);
 
   return (
-    <div
-      className={`leading-coach-banner${className ? ` ${className}` : ''}`}
-      style={{ '--coach-color': color }}
-    >
+    <div className="leading-coach-banner" style={{ '--coach-color': color }}>
       <span className="leading-coach-label">In testa all&apos;asta</span>
       <div className="leading-coach-main">
         <span className="coach-num" style={{ '--coach-color': color }}>{coach.id}</span>
@@ -237,6 +234,19 @@ function LeadingCoachBanner({ coach, bid, className = '' }) {
         <span className="leading-coach-bid">Offerta attuale: <strong>{bid}</strong> cr.</span>
       )}
     </div>
+  );
+}
+
+function LeadingCoachStrip({ coach }) {
+  if (!coach) return null;
+  const color = getCoachColor(coach.id);
+
+  return (
+    <p className="mobile-leading-strip" style={{ '--coach-color': color }}>
+      <span className="mobile-leading-tag">In testa</span>
+      <span className="coach-num sm" style={{ '--coach-color': color }}>{coach.id}</span>
+      <span className="mobile-leading-name">{getCoachDisplayName(coach)}</span>
+    </p>
   );
 }
 
@@ -942,7 +952,7 @@ export function CoachMobileUI({
               <span className="mobile-bid-credits">crediti</span>
             </div>
             {leadingCoach && isLive && (
-              <LeadingCoachBanner coach={leadingCoach} bid={currentBid} className="mobile" />
+              <LeadingCoachStrip coach={leadingCoach} />
             )}
             {isLive && (
               <div className="mobile-timer">

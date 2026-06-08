@@ -1057,9 +1057,35 @@ body::after {
   font-weight: 900;
 }
 
-.leading-coach-banner.mobile {
-  max-width: 100%;
-  margin-top: 0.15rem;
+.mobile-leading-strip {
+  margin: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.45rem;
+  padding: 0.3rem 0.55rem;
+  border-top: 1px solid color-mix(in srgb, var(--coach-color, var(--gold)) 30%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--coach-color, var(--gold)) 30%, transparent);
+  background: color-mix(in srgb, var(--coach-color, var(--gold)) 7%, transparent);
+}
+
+.mobile-leading-tag {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.mobile-leading-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  font-size: 0.82rem;
+  letter-spacing: 0.03em;
+  color: var(--text);
 }
 
 .stage-hint {

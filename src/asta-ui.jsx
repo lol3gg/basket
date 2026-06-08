@@ -1638,20 +1638,22 @@ export function AuctionUI({
               />
             )}
           </div>
-          <ul className={`coaches-cards${hideDashboardCredits && isAuctioneer ? ' credits-hidden' : ''}`}>
-            {joinedCoaches.length === 0 && (
-              <li className="muted coaches-empty">Nessun allenatore connesso — entrano con nome e stanza</li>
-            )}
-            {joinedCoaches.map((c) => (
-              <CoachCard
-                key={c.id}
-                coach={c}
-                isLeading={samePlayerId(c.id, currentBidder)}
-                isOffline={!c.online}
-                hideCredits={isAuctioneer && hideDashboardCredits}
-              />
-            ))}
-          </ul>
+          <div className="coaches-cards-scroll">
+            <ul className={`coaches-cards${hideDashboardCredits && isAuctioneer ? ' credits-hidden' : ''}`}>
+              {joinedCoaches.length === 0 && (
+                <li className="muted coaches-empty">Nessun allenatore connesso — entrano con nome e stanza</li>
+              )}
+              {joinedCoaches.map((c) => (
+                <CoachCard
+                  key={c.id}
+                  coach={c}
+                  isLeading={samePlayerId(c.id, currentBidder)}
+                  isOffline={!c.online}
+                  hideCredits={isAuctioneer && hideDashboardCredits}
+                />
+              ))}
+            </ul>
+          </div>
         </aside>
 
         <section className="dash-panel stage-panel" ref={stageRef}>

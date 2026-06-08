@@ -280,7 +280,7 @@ body::after {
   max-height: none;
   height: 100%;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .dash-auction-viewport .admin-panel,
@@ -861,8 +861,20 @@ body::after {
 
 /* Coaches sidebar */
 .coaches-sidebar {
+  display: flex;
+  flex-direction: column;
   max-height: 520px;
+  overflow: hidden;
+}
+
+.coaches-cards-scroll {
+  --coach-card-slot: 6rem;
+  max-height: calc(3 * var(--coach-card-slot) + 2 * 0.5rem);
   overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  padding-right: 0.2rem;
+  -webkit-overflow-scrolling: touch;
 }
 
 .coaches-cards {
@@ -2799,50 +2811,118 @@ body::after {
   justify-content: center;
 }
 
-/* Palco asta — maglia più grande su PC */
+/* Palco asta — +30% su PC (stage-inner) */
 @media (min-width: 769px) {
+  .dash-auction-viewport .stage-inner {
+    gap: 0.975rem;
+    padding: 0.975rem 1.3rem 1.1rem;
+  }
+
+  .dash-auction-viewport .stage-inner .panel-title {
+    font-size: 1.07rem;
+  }
+
+  .dash-auction-viewport .stage-inner .stage-hint,
+  .dash-auction-viewport .stage-inner .ready-hint {
+    font-size: 1.14rem;
+  }
+
+  .dash-auction-viewport .stage-inner .ready-actions {
+    gap: 0.975rem;
+    margin-top: 1.3rem;
+  }
+
+  .dash-auction-viewport .stage-inner .btn-start-stage {
+    max-width: 26rem;
+    padding: 1.1rem 1.95rem;
+    font-size: 1.3rem;
+  }
+
+  .dash-auction-viewport .stage-inner .settled-actions {
+    gap: 0.65rem;
+    max-width: 468px;
+  }
+
+  .dash-auction-viewport .stage-inner .btn-confirm-stage {
+    max-width: 468px;
+    font-size: 1.2rem;
+    padding: 0.85rem 1.5rem;
+  }
+
+  .dash-auction-viewport .stage-inner .timer-ring.timer-md,
+  .dash-auction-viewport .stage-inner .timer-ring:not(.timer-sm) {
+    width: 94px;
+    height: 94px;
+  }
+
+  .dash-auction-viewport .stage-inner .timer-ring-text {
+    font-size: 1.75rem;
+    transform-origin: 78px 78px;
+  }
+
   .dash-auction-viewport .jersey-card:not(.jersey-empty) {
-    max-width: 430px;
+    max-width: 559px;
   }
 
   .dash-auction-viewport .jersey-body {
-    padding: 1.1rem 1.25rem 0.95rem;
-    gap: 0.55rem;
+    padding: 1.43rem 1.625rem 1.24rem;
+    gap: 0.715rem;
   }
 
   .dash-auction-viewport .jersey-body .player-avatar-xl {
-    width: 6rem;
-    height: 6rem;
-    font-size: 1.45rem;
+    width: 11.7rem;
+    height: 11.7rem;
+    font-size: 2.8rem;
+    border-width: 5px;
   }
 
   .dash-auction-viewport .jersey-name {
-    font-size: 1.65rem;
+    font-size: 2.15rem;
   }
 
   .dash-auction-viewport .jersey-watermark {
-    font-size: 8.5rem;
+    font-size: 11.05rem;
   }
 
   .dash-auction-viewport .settled-banner {
-    padding: 0.6rem 0.9rem;
-    font-size: 0.95rem;
+    padding: 0.78rem 1.17rem;
+    font-size: 1.24rem;
   }
 
   .dash-auction-viewport .jersey-top {
-    padding: 0.65rem 1rem;
+    padding: 0.85rem 1.3rem;
   }
 
   .dash-auction-viewport .jersey-number {
-    font-size: 1.15rem;
+    font-size: 1.5rem;
   }
 
   .dash-auction-viewport .jersey-footer {
-    padding: 0.8rem 1.15rem;
+    padding: 1.04rem 1.5rem;
+  }
+
+  .dash-auction-viewport .jersey-bid .label {
+    font-size: 0.88rem;
   }
 
   .dash-auction-viewport .jersey-bid .bid-value {
-    font-size: 2.5rem;
+    font-size: 3.25rem;
+  }
+
+  .dash-auction-viewport .jersey-closed {
+    font-size: 1.17rem;
+  }
+
+  .dash-auction-viewport .jersey-leading-strip {
+    padding: 0.39rem 0.72rem;
+  }
+
+  .dash-auction-viewport .jersey-leading-tag {
+    font-size: 0.8rem;
+  }
+
+  .dash-auction-viewport .jersey-leading-coach {
+    font-size: 1.05rem;
   }
 }
 

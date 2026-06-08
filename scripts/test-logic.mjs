@@ -133,6 +133,58 @@ function simulateTimerTick(state) {
   };
 }
 
+/** Simula handleStartAuction (banditore → publish state) */
+function simulateStartAuction(state) {
+  if (state.phase === 'paused' && state.currentPlayer) {
+    return {
+      ...state,
+      phase: 'live',
+      isRunning: true,
+      stateVersion: (state.stateVersion || 0) + 1,
+    };
+  }
+  if (state.currentPlayer && state.phase === 'live' && !state.isRunning) {
+    return {
+      ...state,
+      isRunning: true,
+      timer: 15,
+      currentBid: 0,
+      currentBidder: null,
+      stateVersion: (state.stateVersion || 0) + 1,
+    };
+  }
+  const first = state.players.find((p) => p.status === 'available') ?? null;
+  if (!first) return null;
+  return {
+    ...state,
+    currentPlayer: first,
+    currentBid: 0,
+    currentBidder: null,
+    phase: 'live',
+    timer: 15,
+    isRunning: true,
+    stateVersion: (state.stateVersion || 0) + 1,
+  };
+}
+
+/** Simula applyBid Ably (banditore riceve offerta cellulare) */
+function simulateApplyBid(state, coachId, amount) {
+  if (state.phase !== 'live' || !state.isRunning || !state.currentPlayer) return null;
+  const coach = state.coaches.find((c) => c.id === coachId);
+  if (!validateBidAmount(coach, amount, state.currentBid, 1).ok) return null;
+  return {
+    ...state,
+    currentBid: amount,
+    currentBidder: coachId,
+    timer: 15,
+    stateVersion: (state.stateVersion || 0) + 1,
+  };
+}
+
+function isCoachLiveView(state) {
+  return state.phase === 'live' && state.isRunning && Boolean(state.currentPlayer);
+}
+
 // ─── Test suite ───
 
 section('ID giocatori (string vs number)');
@@ -372,6 +424,48 @@ section('syncPlayersFromStorage');
   assert(synced.players.length === PLAYER_COUNT, 'sync ripristina tutti i giocatori salvati');
   assert(synced.players[0].status === 'assigned', 'sync mantiene assegnazione');
   assert(synced.players[0].name === setup.players[0].name, 'sync aggiorna nome da storage');
+}
+
+section('Sync PC → cellulare (avvio asta e offerte)');
+{
+  const coachA = makeCoach(2, 'Lillo', 300);
+  let banditore = makeState({
+    phase: 'live',
+    isRunning: false,
+    currentPlayer: makePlayer(1, 'Girelli Federico'),
+    coaches: [coachA],
+    stateVersion: 3,
+  });
+
+  const started = simulateStartAuction(banditore);
+  assert(started?.isRunning, 'banditore avvia asta da palco pronto');
+  assert(started.stateVersion === 4, 'publish incrementa stateVersion');
+
+  let mobile = simulateApplyState(banditore, started);
+  assert(isCoachLiveView(mobile), 'cellulare vede asta live dopo sync');
+  assert(mobile.currentPlayer?.name === 'Girelli Federico', 'stesso giocatore in palco');
+
+  const stale = simulateApplyState(mobile, { ...banditore, stateVersion: 2 });
+  assert(isCoachLiveView(stale), 'history stale non ferma asta sul cellulare');
+
+  const afterTick = simulateApplyState(mobile, simulateTimerTick(started));
+  assert(afterTick.timer === 14, 'timer sincronizzato sul cellulare');
+  assert(isCoachLiveView(afterTick), 'timer non disattiva asta live');
+
+  const bidState = simulateApplyBid(afterTick, 2, 6);
+  assert(bidState?.currentBid === 6, 'offerta cellulare applicata sul banditore');
+  assert(bidState?.currentBidder === 2, 'allenatore in testa aggiornato');
+
+  const mobileBid = simulateApplyState(afterTick, bidState);
+  assert(mobileBid.currentBid === 6, 'cellulare riceve offerta aggiornata');
+  assert(mobileBid.currentBidder === 2, 'cellulare vede chi è in testa');
+
+  const mobileOpts = buildMobileBidOptions(6, coachA);
+  assert(mobileOpts.options.length === 3, 'pulsanti offerta visibili dopo avvio');
+  assert(mobileOpts.options.every((o) => o.amount <= getMaxBidAmount(coachA)), 'pulsanti rispettano budget');
+
+  const fromIdle = simulateStartAuction(makeState({ coaches: [coachA], stateVersion: 0 }));
+  assert(fromIdle?.isRunning && fromIdle.currentPlayer?.id === 1, 'avvio da idle seleziona primo libero');
 }
 
 section('Disconnect coach');

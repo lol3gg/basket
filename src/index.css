@@ -2968,6 +2968,7 @@ html.mobile-viewport-lock #root {
 }
 
 .mobile-coach-header-compact {
+  --mobile-chip-h: 1.97rem;
   margin-bottom: 0.4rem;
   padding: 0.5rem 0.65rem 0.55rem;
 }
@@ -2985,11 +2986,26 @@ html.mobile-viewport-lock #root {
 }
 
 .mobile-coach-powered .powered-by-devology--inline {
+  min-height: var(--mobile-chip-h);
+  align-items: center;
   padding: 0.26rem 0.5rem 0.26rem 0.55rem;
+  box-sizing: border-box;
 }
 
 .mobile-coach-header-compact .mobile-coach-powered + .mobile-coach-top {
   margin-bottom: 0.3rem;
+}
+
+.mobile-coach-header-compact .mobile-coach-top .pill,
+.mobile-coach-header-compact .mobile-coach-top .btn-ghost-sm {
+  min-height: var(--mobile-chip-h);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-block: 0;
+  padding-inline: 0.65rem;
+  box-sizing: border-box;
+  line-height: 1;
 }
 
 .mobile-coach-identity {

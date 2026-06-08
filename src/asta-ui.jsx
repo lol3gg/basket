@@ -219,25 +219,6 @@ function SetupPhotoButton({ player, onPhoto, onRemove }) {
   );
 }
 
-function LeadingCoachBanner({ coach, bid }) {
-  if (!coach) return null;
-  const color = getCoachColor(coach.id);
-  const name = getCoachDisplayName(coach);
-
-  return (
-    <div className="leading-coach-banner" style={{ '--coach-color': color }}>
-      <span className="leading-coach-label">In testa all&apos;asta</span>
-      <div className="leading-coach-main">
-        <span className="coach-num" style={{ '--coach-color': color }}>{coach.id}</span>
-        <span className="leading-coach-name">{name}</span>
-      </div>
-      {bid > 0 && (
-        <span className="leading-coach-bid">Offerta attuale: <strong>{bid}</strong> cr.</span>
-      )}
-    </div>
-  );
-}
-
 function LeadingCoachStrip({ coach, className = '' }) {
   if (!coach) return null;
   const color = getCoachColor(coach.id);
@@ -1685,9 +1666,6 @@ export function AuctionUI({
               phase={phase}
               winnerName={leadingCoach ? getCoachDisplayName(leadingCoach) : undefined}
             />
-            {leadingCoach && isLive && (
-              <LeadingCoachBanner coach={leadingCoach} bid={currentBid} />
-            )}
             {isReady && isAuctioneer && (
               <div className="ready-actions">
                 <p className="stage-hint ready-hint">Giocatore in palco — avvia il timer quando sei pronto</p>

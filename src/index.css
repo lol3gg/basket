@@ -1107,63 +1107,6 @@ body::after {
   gap: 0.5rem;
 }
 
-.leading-coach-banner {
-  width: 100%;
-  max-width: 480px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 1rem 1.35rem;
-  border-radius: var(--radius-md);
-  border: 2px solid var(--coach-color, var(--gold));
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.32));
-  box-shadow: 0 0 36px color-mix(in srgb, var(--coach-color, var(--gold)) 38%, transparent);
-  text-align: center;
-  animation: float-subtle 3s ease-in-out infinite;
-}
-
-.leading-coach-label {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-weight: 800;
-  font-size: 0.78rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.leading-coach-main {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.7rem;
-}
-
-.leading-coach-name {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-weight: 900;
-  font-size: clamp(1.45rem, 4vw, 1.9rem);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  line-height: 1.05;
-  color: var(--text);
-}
-
-.leading-coach-bid {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-weight: 700;
-  font-size: 1rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--coach-color, var(--gold));
-}
-
-.leading-coach-bid strong {
-  font-size: 1.35rem;
-  font-weight: 900;
-}
-
 .mobile-leading-strip {
   margin: 0;
   width: 100%;
@@ -1265,28 +1208,34 @@ body::after {
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 0.55rem;
-  padding: 0.65rem 0.85rem;
-  background: color-mix(in srgb, var(--jersey-accent, var(--gold)) 22%, rgba(0, 0, 0, 0.55));
-  border-bottom: 1px solid color-mix(in srgb, var(--jersey-accent, var(--gold)) 45%, transparent);
+  gap: 0.4rem 0.5rem;
+  padding: 0.35rem 0.65rem;
+  background: color-mix(in srgb, var(--jersey-accent, var(--gold)) 14%, rgba(0, 0, 0, 0.45));
+  border-bottom: 1px solid color-mix(in srgb, var(--jersey-accent, var(--gold)) 30%, transparent);
 }
 
 .jersey-leading-tag {
   font-family: 'Barlow Condensed', sans-serif;
   font-weight: 800;
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 .jersey-leading-coach {
   font-family: 'Barlow Condensed', sans-serif;
-  font-weight: 900;
-  font-size: 1.15rem;
-  letter-spacing: 0.05em;
+  font-weight: 800;
+  font-size: 0.88rem;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text);
+}
+
+.jersey-leading-strip .coach-num.sm {
+  width: 1.4rem;
+  height: 1.4rem;
+  font-size: 0.72rem;
 }
 
 .jersey-top {
@@ -2894,10 +2843,6 @@ body::after {
 
   .dash-auction-viewport .jersey-bid .bid-value {
     font-size: 2.5rem;
-  }
-
-  .dash-auction-viewport .jersey-leading-coach {
-    font-size: 1.25rem;
   }
 }
 

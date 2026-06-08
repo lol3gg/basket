@@ -892,6 +892,9 @@ export function CoachMobileUI({
     <div className="app mobile-coach mobile-coach-fixed">
       <AssignmentFlashOverlay flash={assignmentFlash} />
       <header className="mobile-coach-header mobile-coach-header-compact">
+        <div className="mobile-coach-powered">
+          <PoweredByDevology inline />
+        </div>
         <div className="mobile-coach-top">
           <span className={`pill ${connected ? 'ok' : 'err'}`}>
             {connectedLabel ?? (connected ? 'Live' : 'Offline')}
@@ -899,9 +902,6 @@ export function CoachMobileUI({
           <button type="button" className="btn-ghost btn-ghost-sm" onClick={onChangeCoach}>
             Esci
           </button>
-        </div>
-        <div className="mobile-coach-powered">
-          <PoweredByDevology inline />
         </div>
         <div className="mobile-coach-identity">
           <h1 className="mobile-coach-name" style={{ '--coach-color': myColor }}>

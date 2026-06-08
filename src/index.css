@@ -2981,11 +2981,15 @@ html.mobile-viewport-lock #root {
   display: flex;
   justify-content: center;
   width: 100%;
-  margin-bottom: 0.35rem;
+  margin: 0 0 0.3rem;
 }
 
 .mobile-coach-powered .powered-by-devology--inline {
-  padding: 0.32rem 0.55rem 0.32rem 0.6rem;
+  padding: 0.26rem 0.5rem 0.26rem 0.55rem;
+}
+
+.mobile-coach-header-compact .mobile-coach-powered + .mobile-coach-top {
+  margin-bottom: 0.3rem;
 }
 
 .mobile-coach-identity {

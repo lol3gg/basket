@@ -13,13 +13,12 @@
   z-index: 1200;
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.3rem 0.55rem 0.3rem 0.65rem;
-  border-radius: var(--radius-sm);
-  background: rgba(10, 10, 10, 0.78);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(10px);
-  box-shadow: var(--shadow-sm);
+  gap: 0.55rem;
+  padding: 0.5rem 0.75rem 0.5rem 0.85rem;
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
   pointer-events: none;
   user-select: none;
 }
@@ -27,15 +26,15 @@
 .powered-by-label {
   font-family: 'Barlow Condensed', sans-serif;
   font-weight: 700;
-  font-size: 0.62rem;
+  font-size: 0.72rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: #5a5a5a;
   white-space: nowrap;
 }
 
 .powered-by-logo {
-  height: 1.75rem;
+  height: 2.15rem;
   width: auto;
   display: block;
   object-fit: contain;
@@ -45,16 +44,16 @@
   .powered-by-devology {
     top: 0.45rem;
     right: 0.45rem;
-    gap: 0.3rem;
-    padding: 0.22rem 0.4rem 0.22rem 0.5rem;
+    gap: 0.4rem;
+    padding: 0.4rem 0.55rem 0.4rem 0.65rem;
   }
 
   .powered-by-label {
-    font-size: 0.55rem;
+    font-size: 0.62rem;
   }
 
   .powered-by-logo {
-    height: 1.35rem;
+    height: 1.75rem;
   }
 }
 

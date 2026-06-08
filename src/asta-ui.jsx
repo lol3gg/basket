@@ -906,8 +906,7 @@ export function CoachMobileUI({
   return (
     <div className="app mobile-coach mobile-coach-fixed">
       <AssignmentFlashOverlay flash={assignmentFlash} />
-      <header className="mobile-coach-header">
-        <p className="mobile-app-brand">{APP_TITLE}</p>
+      <header className="mobile-coach-header mobile-coach-header-compact">
         <div className="mobile-coach-top">
           <span className={`pill ${connected ? 'ok' : 'err'}`}>
             {connectedLabel ?? (connected ? 'Live' : 'Offline')}
@@ -916,13 +915,15 @@ export function CoachMobileUI({
             Esci
           </button>
         </div>
-        <h1 className="mobile-coach-name" style={{ '--coach-color': myColor }}>
-          {getCoachDisplayName(myCoach)}
-        </h1>
+        <div className="mobile-coach-identity">
+          <h1 className="mobile-coach-name" style={{ '--coach-color': myColor }}>
+            {getCoachDisplayName(myCoach)}
+          </h1>
+          <p className="mobile-coach-budget">{myCoach?.budget ?? 0} crediti disponibili</p>
+        </div>
         {isBudgetMinimum(myCoach) && (
           <span className="coach-budget-min-badge mobile">Budget minimo</span>
         )}
-        <p className="mobile-coach-budget">{myCoach?.budget ?? 0} crediti disponibili</p>
       </header>
 
       {bidError && <div className="alert mobile-alert">{bidError}</div>}
@@ -967,9 +968,11 @@ export function CoachMobileUI({
             <p className="mobile-waiting-subtitle">Attendi il prossimo giocatore</p>
           </div>
         )}
-        <p className={`mobile-status ${isLive ? 'live' : ''} ${isSettled ? 'settled' : ''} ${isReady ? 'ready' : ''}`}>
-          {statusText}
-        </p>
+        {!(isLive && currentPlayer) && (
+          <p className={`mobile-status ${isLive ? 'live' : ''} ${isSettled ? 'settled' : ''} ${isReady ? 'ready' : ''}`}>
+            {statusText}
+          </p>
+        )}
       </section>
 
       {isLive && currentPlayer && myCoach && (

@@ -896,12 +896,12 @@ export function CoachMobileUI({
           <span className={`pill ${connected ? 'ok' : 'err'}`}>
             {connectedLabel ?? (connected ? 'Live' : 'Offline')}
           </span>
-          <div className="mobile-coach-top-right">
-            <PoweredByDevology inline />
-            <button type="button" className="btn-ghost btn-ghost-sm" onClick={onChangeCoach}>
-              Esci
-            </button>
-          </div>
+          <button type="button" className="btn-ghost btn-ghost-sm" onClick={onChangeCoach}>
+            Esci
+          </button>
+        </div>
+        <div className="mobile-coach-powered">
+          <PoweredByDevology inline />
         </div>
         <div className="mobile-coach-identity">
           <h1 className="mobile-coach-name" style={{ '--coach-color': myColor }}>

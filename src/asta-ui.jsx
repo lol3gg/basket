@@ -30,6 +30,7 @@ import { FullscreenToggle } from './useFullscreen.jsx';
 import { useMobileViewportLock } from './useMobileViewportLock.js';
 import { AssignmentFlashOverlay, useAssignmentFlash } from './useAssignmentFlash.jsx';
 import { BasketballIcon } from './BasketballDecor.jsx';
+import { PoweredByDevology } from './PoweredByDevology.jsx';
 import { buildCoachRankings, exportAstaPdf, exportRostersPdf } from './exportAstaPdf.js';
 import { getPlayerInitials, getPlayerAvatarColor, readPlayerPhotoFile } from './playerPhoto.js';
 import {
@@ -237,12 +238,15 @@ function LeadingCoachBanner({ coach, bid }) {
   );
 }
 
-function LeadingCoachStrip({ coach }) {
+function LeadingCoachStrip({ coach, className = '' }) {
   if (!coach) return null;
   const color = getCoachColor(coach.id);
 
   return (
-    <p className="mobile-leading-strip" style={{ '--coach-color': color }}>
+    <p
+      className={`mobile-leading-strip${className ? ` ${className}` : ''}`}
+      style={{ '--coach-color': color }}
+    >
       <span className="mobile-leading-tag">In testa</span>
       <span className="coach-num sm" style={{ '--coach-color': color }}>{coach.id}</span>
       <span className="mobile-leading-name">{getCoachDisplayName(coach)}</span>
@@ -911,9 +915,12 @@ export function CoachMobileUI({
           <span className={`pill ${connected ? 'ok' : 'err'}`}>
             {connectedLabel ?? (connected ? 'Live' : 'Offline')}
           </span>
-          <button type="button" className="btn-ghost btn-ghost-sm" onClick={onChangeCoach}>
-            Esci
-          </button>
+          <div className="mobile-coach-top-right">
+            <PoweredByDevology inline />
+            <button type="button" className="btn-ghost btn-ghost-sm" onClick={onChangeCoach}>
+              Esci
+            </button>
+          </div>
         </div>
         <div className="mobile-coach-identity">
           <h1 className="mobile-coach-name" style={{ '--coach-color': myColor }}>
@@ -932,33 +939,35 @@ export function CoachMobileUI({
         {currentPlayer && <BasketballIcon className="mobile-stage-ball" size={48} />}
         {currentPlayer ? (
           <>
-            <p className="mobile-player-label">
-              {isSettled ? 'Asta chiusa' : isReady ? 'Pronto per l\'asta' : 'In asta'}
-            </p>
-            <div className="mobile-player-avatar">
-              <PlayerAvatar player={currentPlayer} size="lg" />
-            </div>
-            <h2 className="mobile-player-name">{currentPlayer.name}</h2>
-            {isSettled && settledMessage && (
-              <div
-                className={`mobile-settled-banner ${sold ? (iWon ? 'won' : 'sold') : 'unsold'}`}
-                style={sold ? { '--coach-color': getCoachColor(currentBidder) } : undefined}
-              >
-                {settledMessage}
+            <div className="mobile-stage-main">
+              <p className="mobile-player-label">
+                {isSettled ? 'Asta chiusa' : isReady ? 'Pronto per l\'asta' : 'In asta'}
+              </p>
+              <div className="mobile-player-avatar">
+                <PlayerAvatar player={currentPlayer} size="xl" />
               </div>
-            )}
-            <div className="mobile-bid-box">
-              <span className="mobile-bid-label">{isSettled ? 'Prezzo finale' : 'Offerta attuale'}</span>
-              <span className="mobile-bid-value">{currentBid}</span>
-              <span className="mobile-bid-credits">crediti</span>
+              <h2 className="mobile-player-name">{currentPlayer.name}</h2>
+              {isSettled && settledMessage && (
+                <div
+                  className={`mobile-settled-banner ${sold ? (iWon ? 'won' : 'sold') : 'unsold'}`}
+                  style={sold ? { '--coach-color': getCoachColor(currentBidder) } : undefined}
+                >
+                  {settledMessage}
+                </div>
+              )}
+              <div className="mobile-bid-box">
+                <span className="mobile-bid-label">{isSettled ? 'Prezzo finale' : 'Offerta attuale'}</span>
+                <span className="mobile-bid-value">{currentBid}</span>
+                <span className="mobile-bid-credits">crediti</span>
+              </div>
+              {isLive && (
+                <div className="mobile-timer">
+                  <TimerRing timer={timer} max={AUCTION_SECONDS} size="md" />
+                </div>
+              )}
             </div>
             {leadingCoach && isLive && (
-              <LeadingCoachStrip coach={leadingCoach} />
-            )}
-            {isLive && (
-              <div className="mobile-timer">
-                <TimerRing timer={timer} max={AUCTION_SECONDS} size="md" />
-              </div>
+              <LeadingCoachStrip coach={leadingCoach} className="mobile-stage-leading" />
             )}
           </>
         ) : (

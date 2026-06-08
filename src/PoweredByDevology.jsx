@@ -1,6 +1,9 @@
-export function PoweredByDevology() {
+export function PoweredByDevology({ inline = false }) {
   return (
-    <div className="powered-by-devology" aria-label="Powered by Devology">
+    <div
+      className={`powered-by-devology${inline ? ' powered-by-devology--inline' : ''}`}
+      aria-label="Powered by Devology"
+    >
       <span className="powered-by-label">Powered by</span>
       <img
         src="/devology-logo-sm.png"

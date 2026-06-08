@@ -876,7 +876,7 @@ export function CoachMobileUI({
 
   const settledMessage = isSettled && currentPlayer
     ? (sold
-      ? (iWon ? 'Te l\'hai aggiudicato!' : `Aggiudicato a ${winnerName}`)
+      ? (iWon ? 'Te lo sei aggiudicato!' : `Aggiudicato a ${winnerName}`)
       : 'Non venduto')
     : null;
 

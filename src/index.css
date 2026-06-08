@@ -3784,59 +3784,6 @@ html:-webkit-full-screen .app {
   }
 }
 
-/* TV / HDMI — scala proporzionale 16:9 (PC banditore su schermo grande) */
-html.tv-layout,
-html.tv-layout body {
-  overflow: hidden;
-  width: 100%;
-  height: 100%;
-  min-height: 100dvh;
-}
-
-html.tv-layout #root {
-  width: 100vw;
-  height: 100dvh;
-  min-height: 100dvh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-html.tv-layout .app.dash:not(.mobile-coach-fixed) {
-  width: 1600px;
-  max-width: 1600px;
-  height: 900px;
-  max-height: 900px;
-  margin: 0;
-  padding: 0.65rem 1rem 0.75rem;
-  box-sizing: border-box;
-  flex-shrink: 0;
-  overflow: hidden;
-  transform: scale(var(--tv-scale, 1));
-  transform-origin: center center;
-}
-
-html.tv-layout .app.dash .dash-auction-viewport {
-  flex: 1;
-  min-height: 0;
-  height: auto;
-  max-height: none;
-}
-
-html.tv-layout .dash-top-cluster {
-  max-width: 100%;
-}
-
-html.tv-layout .dash-main {
-  grid-template-columns: minmax(240px, 1fr) minmax(420px, 2.2fr) minmax(240px, 1fr);
-}
-
-html.tv-layout .powered-by-devology:not(.powered-by-devology--inline) {
-  top: max(0.5rem, env(safe-area-inset-top, 0.5rem));
-  right: max(0.65rem, env(safe-area-inset-right, 0.65rem));
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -160,28 +160,32 @@ export function AstaTorneoLocal() {
 
     if (!player || ph === 'settled') return;
 
+    const winner = bidder != null ? cs.find((c) => samePlayerId(c.id, bidder)) : null;
+    const winnerId = winner?.id ?? bidder ?? null;
+
     const updatedPlayers = ps.map((p) =>
-      p.id === player.id ? { ...p, status: 'assigned', coachId: bidder ?? null } : p,
+      p.id === player.id ? { ...p, status: 'assigned', coachId: winnerId } : p,
     );
 
     let updatedCoaches = cs;
-    if (bidder && bid > 0) {
+    if (winner && bid > 0) {
       updatedCoaches = cs.map((c) => {
-        if (c.id !== bidder) return c;
+        if (!samePlayerId(c.id, winner.id)) return c;
         return {
           ...c,
           budget: c.budget - bid,
           players: [...c.players, { id: player.id, name: player.name, role: player.role, price: bid }],
         };
       });
-      const winner = cs.find((c) => c.id === bidder);
-      pushLog(`${player.name} assegnato a ${winner?.name ?? 'Allenatore'} per ${bid} cr.`);
+      pushLog(`${player.name} assegnato a ${winner.name ?? 'Allenatore'} per ${bid} cr.`);
     } else {
       pushLog(`${player.name} non venduto (nessuna offerta).`);
     }
 
     setPlayers(updatedPlayers);
     setCoaches(updatedCoaches);
+    setCurrentBidder(winnerId);
+    setCurrentBid(bid);
     setPhase('settled');
     setIsRunning(false);
     setTimer(0);

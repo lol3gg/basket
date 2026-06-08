@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { getCoachDisplayName, isMobileDevice } from './asta-setup.js';
+import { samePlayerId } from './asta-logic.js';
 
 export function useAssignmentFlash({
   phase,
@@ -14,12 +15,14 @@ export function useAssignmentFlash({
 
   useEffect(() => {
     if (phase !== 'settled' || !currentPlayer?.id) {
-      seenRef.current = null;
-      setFlash(null);
+      if (phase !== 'settled') {
+        seenRef.current = null;
+        setFlash(null);
+      }
       return undefined;
     }
 
-    const sold = Boolean(currentBidder && currentBid > 0);
+    const sold = currentBidder != null && currentBid > 0;
     const key = sold
       ? `${currentPlayer.id}:sold:${currentBidder}:${currentBid}`
       : `${currentPlayer.id}:unsold`;
@@ -41,8 +44,8 @@ export function useAssignmentFlash({
       return undefined;
     }
 
-    const coach = coaches.find((c) => c.id === currentBidder);
-    const coachName = getCoachDisplayName(coach);
+    const coach = coaches.find((c) => samePlayerId(c.id, currentBidder));
+    const coachName = getCoachDisplayName(coach) || `Allenatore ${currentBidder}`;
 
     setFlash({ playerName, coachName, bid: currentBid, exiting: false });
 
@@ -55,11 +58,14 @@ export function useAssignmentFlash({
       window.speechSynthesis.speak(msg);
     }
 
+    const hideMs = isMobileDevice() ? 3000 : 5000;
+    const exitMs = hideMs - 500;
+
     const exitAt = setTimeout(
       () => setFlash((prev) => (prev ? { ...prev, exiting: true } : null)),
-      2500,
+      exitMs,
     );
-    const hideAt = setTimeout(() => setFlash(null), 3000);
+    const hideAt = setTimeout(() => setFlash(null), hideMs);
 
     return () => {
       clearTimeout(exitAt);

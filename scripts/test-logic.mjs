@@ -9,6 +9,7 @@ import {
   buildResetAuctionState,
   buildRestartPlayerState,
   disconnectCoachFromState,
+  toNetworkGameState,
 } from '../src/asta-logic.js';
 import {
   INITIAL_BUDGET,
@@ -424,6 +425,34 @@ section('syncPlayersFromStorage');
   assert(synced.players.length === PLAYER_COUNT, 'sync ripristina tutti i giocatori salvati');
   assert(synced.players[0].status === 'assigned', 'sync mantiene assegnazione');
   assert(synced.players[0].name === setup.players[0].name, 'sync aggiorna nome da storage');
+}
+
+section('Payload rete Ably (foto giocatori)');
+{
+  const bigPhoto = `data:image/jpeg;base64,${'A'.repeat(50_000)}`;
+  const players = Array.from({ length: PLAYER_COUNT }, (_, i) => ({
+    id: i + 1,
+    name: `Giocatore ${i + 1}`,
+    role: 'G',
+    team: '—',
+    status: 'available',
+    coachId: null,
+    photo: bigPhoto,
+  }));
+  const state = makeState({
+    players,
+    currentPlayer: players[0],
+    phase: 'live',
+    isRunning: true,
+    stateVersion: 5,
+  });
+  const net = toNetworkGameState(state);
+  assert(net.players.every((p) => !p.photo), 'rete: rosa senza foto');
+  assert(!net.currentPlayer?.photo, 'rete: nessuna foto sul giocatore in palco');
+  const rawSize = JSON.stringify(state).length;
+  const netSize = JSON.stringify(net).length;
+  assert(rawSize > 500_000, 'stato locale con 48 foto è pesante');
+  assert(netSize < 30_000, `payload rete compatto (${netSize} byte)`);
 }
 
 section('Sync PC → cellulare (avvio asta e offerte)');

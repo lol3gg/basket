@@ -260,7 +260,9 @@ export function JerseyCard({ player, currentBid, leadingCoachId, timer, phase, w
     >
       {isSettled && (
         <div className={`settled-banner ${sold ? 'sold' : 'unsold'}`}>
-          {sold ? `Aggiudicato · ${winnerName}` : 'Non venduto'}
+          {sold
+            ? `Aggiudicato · ${winnerName || `Allenatore ${leadingCoachId}`}`
+            : 'Non venduto'}
         </div>
       )}
       {showLeading && (
@@ -824,14 +826,14 @@ export function CoachMobileUI({
 }) {
   useMobileViewportLock();
 
-  const myCoach = coaches.find((c) => c.id === coachId);
+  const myCoach = coaches.find((c) => samePlayerId(c.id, coachId));
   const myColor = getCoachColor(coachId);
   const isLive = phase === 'live' && isRunning;
   const isPaused = phase === 'paused';
   const isSettled = phase === 'settled';
   const isReady = phase === 'live' && !isRunning && Boolean(currentPlayer) && !isSettled;
-  const leadingCoach = coaches.find((c) => c.id === currentBidder);
-  const iAmLeading = currentBidder === coachId;
+  const leadingCoach = coaches.find((c) => samePlayerId(c.id, currentBidder));
+  const iAmLeading = samePlayerId(currentBidder, coachId);
   const sold = isSettled && currentBid > 0 && currentBidder;
   const iWon = sold && iAmLeading;
   const winnerName = leadingCoach ? getCoachDisplayName(leadingCoach) : null;
@@ -1395,10 +1397,10 @@ export function AuctionUI({
 
   const isAuctioneer = isAuctioneerProp ?? isBanditoreRole(coachId);
   const joinedCoaches = getJoinedCoaches(coaches);
-  const myCoach = isAuctioneer ? null : coaches.find((c) => c.id === coachId);
+  const myCoach = isAuctioneer ? null : coaches.find((c) => samePlayerId(c.id, coachId));
   const availablePlayers = players.filter((p) => p.status === 'available');
   const assignedPlayers = players.filter((p) => p.status === 'assigned');
-  const leadingCoach = coaches.find((c) => c.id === currentBidder);
+  const leadingCoach = coaches.find((c) => samePlayerId(c.id, currentBidder));
   const myColor = isAuctioneer ? '#D4AF37' : getCoachColor(coachId);
   const isSettled = phase === 'settled';
   const isPaused = phase === 'paused';
@@ -1644,7 +1646,7 @@ export function AuctionUI({
               <CoachCard
                 key={c.id}
                 coach={c}
-                isLeading={c.id === currentBidder}
+                isLeading={samePlayerId(c.id, currentBidder)}
                 isOffline={!c.online}
                 hideCredits={isAuctioneer && hideDashboardCredits}
               />

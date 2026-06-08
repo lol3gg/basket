@@ -16,6 +16,23 @@ function findPlayerById(players, playerId) {
 
 export { findPlayerById };
 
+function stripPlayerPhoto(player) {
+  if (!player) return player;
+  const { photo, ...rest } = player;
+  return rest;
+}
+
+/** Ably ~64KB: mai inviare foto (restano solo in localStorage sul PC banditore). */
+export function toNetworkGameState(state) {
+  if (!state) return state;
+  return {
+    ...state,
+    players: (state.players || []).map(stripPlayerPhoto),
+    currentPlayer: stripPlayerPhoto(state.currentPlayer),
+    log: Array.isArray(state.log) ? state.log.slice(-30) : [],
+  };
+}
+
 function findCoachOwningPlayer(state, playerId) {
   const player = findPlayerById(state.players, playerId);
   if (player?.coachId != null) {

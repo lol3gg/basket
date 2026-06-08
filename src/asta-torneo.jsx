@@ -44,7 +44,7 @@ import {
   isMobileDevice,
   getCoachDisplayName,
 } from './asta-setup.js';
-import { buildRestartPlayerState, buildResetAuctionState, buildReAuctionPlayerState, samePlayerId, findPlayerById, disconnectCoachFromState } from './asta-logic.js';
+import { buildRestartPlayerState, buildResetAuctionState, buildReAuctionPlayerState, samePlayerId, findPlayerById, disconnectCoachFromState, toNetworkGameState } from './asta-logic.js';
 import { isAuctionComplete } from './exportAstaPdf.js';
 import { applyForcedRosterAssignments, getUnbuyableAvailableCount, canForceAssignPlayers, maybeApplyForcedAssignments, validateBidAmount, getBidValidationError } from './asta-budget.js';
 import {
@@ -120,12 +120,12 @@ function appendLog(state, text) {
 
 function applyBid(state, coachId, amount) {
   if (state.phase !== 'live' || !state.isRunning || !state.currentPlayer) return null;
-  const coach = state.coaches.find((c) => c.id === coachId);
-  if (!validateBidAmount(coach, amount, state.currentBid, BID_INCREMENT).ok) return null;
+  const coach = state.coaches.find((c) => samePlayerId(c.id, coachId));
+  if (!coach || !validateBidAmount(coach, amount, state.currentBid, BID_INCREMENT).ok) return null;
   return {
     ...state,
     currentBid: amount,
-    currentBidder: coachId,
+    currentBidder: coach.id,
     timer: AUCTION_SECONDS,
   };
 }
@@ -238,8 +238,9 @@ function AstaTorneoAbly() {
     lastStateAtRef.current = Date.now();
     gameStateRef.current = next;
     setGameState(next);
-    channelRef.current?.publish('state', next).catch((err) => {
+    channelRef.current?.publish('state', toNetworkGameState(next)).catch((err) => {
       console.error('publish state error:', err);
+      setActionError('Sync agli allenatori fallita — riprova o ricarica la pagina.');
     });
   }, []);
 
@@ -501,7 +502,7 @@ function AstaTorneoAbly() {
       coachRegisteredRef.current = false;
       return;
     }
-    const myCoach = coaches.find((c) => c.id === coachId);
+    const myCoach = coaches.find((c) => samePlayerId(c.id, coachId));
     if (myCoach?.online) {
       coachRegisteredRef.current = true;
       return;
@@ -525,29 +526,41 @@ function AstaTorneoAbly() {
       return;
     }
 
+    const winner = bidder != null ? cs.find((c) => samePlayerId(c.id, bidder)) : null;
+    const winnerId = winner?.id ?? bidder ?? null;
+
     const updatedPlayers = ps.map((p) =>
-      p.id === player.id ? { ...p, status: 'assigned', coachId: bidder ?? null } : p,
+      p.id === player.id ? { ...p, status: 'assigned', coachId: winnerId } : p,
     );
 
     let updatedCoaches = cs;
     let logText = '';
 
-    if (bidder && bid > 0) {
+    if (winner && bid > 0) {
       updatedCoaches = cs.map((c) => {
-        if (c.id !== bidder) return c;
+        if (!samePlayerId(c.id, winner.id)) return c;
         return {
           ...c,
           budget: c.budget - bid,
           players: [...c.players, { id: player.id, name: player.name, role: player.role, price: bid }],
         };
       });
-      const winner = cs.find((c) => c.id === bidder);
-      logText = `${player.name} assegnato a ${winner?.name ?? 'Allenatore'} per ${bid} cr.`;
+      logText = `${player.name} assegnato a ${winner.name ?? 'Allenatore'} per ${bid} cr.`;
     } else {
       logText = `${player.name} non venduto (nessuna offerta).`;
     }
 
-    let next = { ...state, players: updatedPlayers, coaches: updatedCoaches, phase: 'settled', isRunning: false, timer: 0, currentPlayer: player };
+    let next = {
+      ...state,
+      players: updatedPlayers,
+      coaches: updatedCoaches,
+      phase: 'settled',
+      isRunning: false,
+      timer: 0,
+      currentPlayer: player,
+      currentBidder: winnerId,
+      currentBid: bid,
+    };
     next = appendLog(next, logText);
     publishState(next);
     assignLockRef.current = false;
@@ -590,7 +603,7 @@ function AstaTorneoAbly() {
         if (nextTimer === 0) {
           clearInterval(timerIntervalRef.current);
           queueMicrotask(() => handleAssign());
-          return state;
+          return { ...state, timer: 0 };
         }
         return { ...state, timer: nextTimer };
       });
@@ -1036,7 +1049,7 @@ function AstaTorneoAbly() {
       setBidError('Nessuna asta attiva.');
       return;
     }
-    const coach = coaches.find((c) => c.id === coachId);
+    const coach = coaches.find((c) => samePlayerId(c.id, coachId));
     const error = getBidValidationError(coach, amount, currentBid, BID_INCREMENT);
     if (error) {
       setBidError(error);

@@ -820,10 +820,6 @@ function AstaTorneoAbly() {
 
     let placed = false;
     publishState((state) => {
-      if (state.isRunning) {
-        setActionError('Metti in pausa l\'asta prima di selezionare un altro giocatore.');
-        return state;
-      }
       const player = findPlayerById(state.players, playerId);
       if (!player || player.status !== 'available') {
         setActionError('Giocatore non disponibile per l\'asta.');
@@ -836,8 +832,19 @@ function AstaTorneoAbly() {
         }
         return state;
       }
+      if (
+        state.currentPlayer
+        && samePlayerId(state.currentPlayer.id, player.id)
+        && state.phase === 'live'
+      ) {
+        return state;
+      }
       placed = true;
       setActionError('');
+      const replacing = state.currentPlayer && !samePlayerId(state.currentPlayer.id, player.id);
+      const logText = replacing
+        ? `${player.name} in palco (sostituisce ${state.currentPlayer.name}) — pronto per l'asta`
+        : `${player.name} in palco — pronto per l'asta`;
       return appendLog({
         ...state,
         currentPlayer: player,
@@ -846,7 +853,7 @@ function AstaTorneoAbly() {
         phase: 'live',
         isRunning: false,
         timer: AUCTION_SECONDS,
-      }, `${player.name} in palco — pronto per l'asta`);
+      }, logText);
     });
 
     if (import.meta.env.DEV && placed) {

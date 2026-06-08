@@ -95,6 +95,48 @@ export function CourtBackground() {
   );
 }
 
+function BudgetVisibilityToggle({ hidden, onToggle }) {
+  const label = hidden ? 'Mostra crediti' : 'Nascondi crediti';
+  return (
+    <button
+      type="button"
+      className={`budget-visibility-toggle${hidden ? ' is-hidden' : ''}`}
+      onClick={onToggle}
+      aria-pressed={hidden}
+      title={label}
+      aria-label={label}
+    >
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        {hidden ? (
+          <>
+            <path
+              d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </>
+        ) : (
+          <>
+            <path
+              d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="2" />
+          </>
+        )}
+      </svg>
+    </button>
+  );
+}
+
 export function TimerRing({ timer, max = 10, size = 'md' }) {
   const r = 52;
   const circ = 2 * Math.PI * r;
@@ -252,7 +294,7 @@ function StatCard({ label, value, sub, accent }) {
   );
 }
 
-function CoachCard({ coach, isLeading, isOffline }) {
+function CoachCard({ coach, isLeading, isOffline, hideCredits = false }) {
   const spent = INITIAL_BUDGET - coach.budget;
   const pct = Math.round((coach.budget / INITIAL_BUDGET) * 100);
   const displayName = getCoachDisplayName(coach);
@@ -260,21 +302,29 @@ function CoachCard({ coach, isLeading, isOffline }) {
 
   return (
     <li
-      className={`coach-card ${isLeading ? 'leading' : ''} ${isOffline ? 'offline' : ''} ${budgetMin ? 'budget-minimum' : ''}`}
+      className={`coach-card ${isLeading ? 'leading' : ''} ${isOffline ? 'offline' : ''} ${!hideCredits && budgetMin ? 'budget-minimum' : ''}`}
     >
       <div className="coach-card-head">
         <span className="coach-num" style={{ '--coach-color': getCoachColor(coach.id) }}>{coach.id}</span>
         <div className="coach-card-info">
           <span className="coach-name">{displayName}</span>
-          <span className="coach-budget">{coach.budget} cr. rimasti</span>
+          {!hideCredits && (
+            <span className="coach-budget">{coach.budget} cr. rimasti</span>
+          )}
         </div>
         <span className="coach-pill">{coach.players.length}/{ROSTER_SLOTS}</span>
-        {budgetMin && <span className="coach-budget-min-badge">Budget minimo</span>}
+        {!hideCredits && budgetMin && (
+          <span className="coach-budget-min-badge">Budget minimo</span>
+        )}
       </div>
-      <div className="budget-bar">
-        <div className="budget-bar-fill" style={{ width: `${pct}%`, background: getCoachColor(coach.id) }} />
-      </div>
-      <span className="coach-spent">{spent} cr. spesi</span>
+      {!hideCredits && (
+        <>
+          <div className="budget-bar">
+            <div className="budget-bar-fill" style={{ width: `${pct}%`, background: getCoachColor(coach.id) }} />
+          </div>
+          <span className="coach-spent">{spent} cr. spesi</span>
+        </>
+      )}
     </li>
   );
 }
@@ -1309,6 +1359,7 @@ export function AuctionUI({
   const [reassigningId, setReassigningId] = useState(null);
   const [reassignCoachId, setReassignCoachId] = useState('');
   const [playerSearch, setPlayerSearch] = useState('');
+  const [hideDashboardCredits, setHideDashboardCredits] = useState(false);
   const stageRef = useRef(null);
 
   const isAuctioneer = isAuctioneerProp ?? isBanditoreRole(coachId);
@@ -1466,6 +1517,10 @@ export function AuctionUI({
           Conferma prossimo
         </button>
       )}
+      <BudgetVisibilityToggle
+        hidden={hideDashboardCredits}
+        onToggle={() => setHideDashboardCredits((v) => !v)}
+      />
     </>
   );
 
@@ -1504,7 +1559,9 @@ export function AuctionUI({
         <StatCard label="Assegnati" value={assignedPlayers.length} accent />
         <StatCard label="Offerta attuale" value={currentBid} sub="crediti" accent />
         <StatCard label="Timer" value={isSettled ? '—' : isReady ? '—' : `${timer}s`} sub={isSettled ? 'conferma' : isReady ? 'pronto' : isPaused ? 'in pausa' : isLive ? 'asta' : 'fermo'} />
-        <StatCard label="Spesi totali" value={totalSpent} sub="crediti lega" />
+        {(!isAuctioneer || !hideDashboardCredits) && (
+          <StatCard label="Spesi totali" value={totalSpent} sub="crediti lega" />
+        )}
       </section>
 
       <div className="progress-block">
@@ -1539,8 +1596,14 @@ export function AuctionUI({
         <aside className="dash-panel coaches-sidebar">
           <div className="panel-head">
             <h2 className="panel-title">Classifica budget</h2>
+            {isAuctioneer && (
+              <BudgetVisibilityToggle
+                hidden={hideDashboardCredits}
+                onToggle={() => setHideDashboardCredits((v) => !v)}
+              />
+            )}
           </div>
-          <ul className="coaches-cards">
+          <ul className={`coaches-cards${hideDashboardCredits && isAuctioneer ? ' credits-hidden' : ''}`}>
             {joinedCoaches.length === 0 && (
               <li className="muted coaches-empty">Nessun allenatore connesso — entrano con nome e stanza</li>
             )}
@@ -1550,6 +1613,7 @@ export function AuctionUI({
                 coach={c}
                 isLeading={c.id === currentBidder}
                 isOffline={!c.online}
+                hideCredits={isAuctioneer && hideDashboardCredits}
               />
             ))}
           </ul>
@@ -1647,20 +1711,28 @@ export function AuctionUI({
 
         {isAuctioneer ? (
           <aside className="dash-panel admin-panel">
-            <div className="panel-head">
+            <div className="panel-head admin-panel-head">
               <h2 className="panel-title">Allenatori connessi</h2>
-              <span className="panel-count">{joinedCoaches.length}</span>
+              <div className="panel-head-actions">
+                <span className="panel-count">{joinedCoaches.length}</span>
+                <BudgetVisibilityToggle
+                  hidden={hideDashboardCredits}
+                  onToggle={() => setHideDashboardCredits((v) => !v)}
+                />
+              </div>
             </div>
-            <ul className="admin-coach-list">
+            <ul className={`admin-coach-list${hideDashboardCredits ? ' credits-hidden' : ''}`}>
               {joinedCoaches.length === 0 && (
                 <li className="muted">In attesa del primo allenatore…</li>
               )}
               {joinedCoaches.map((c) => (
-                <li key={c.id} className={`${c.online ? 'online' : 'offline'}${isBudgetMinimum(c) ? ' budget-minimum' : ''}`}>
+                <li key={c.id} className={`${c.online ? 'online' : 'offline'}${!hideDashboardCredits && isBudgetMinimum(c) ? ' budget-minimum' : ''}`}>
                   <span className="coach-num sm" style={{ '--coach-color': getCoachColor(c.id) }}>{c.id}</span>
                   <span className="admin-coach-name">{getCoachDisplayName(c)}</span>
-                  <span className="admin-coach-budget">{c.budget} cr.</span>
-                  {isBudgetMinimum(c) && (
+                  {!hideDashboardCredits && (
+                    <span className="admin-coach-budget">{c.budget} cr.</span>
+                  )}
+                  {!hideDashboardCredits && isBudgetMinimum(c) && (
                     <span className="coach-budget-min-badge sm">Budget minimo</span>
                   )}
                   {onRemoveCoach && c.id !== BANDITORE_COACH_ID && (
@@ -1793,14 +1865,19 @@ export function AuctionUI({
                   <span className="coach-num sm">{c.id}</span>
                   <span className="team-name">{getCoachDisplayName(c)}</span>
                   <span className="team-roster-count">{c.players.length}/{ROSTER_SLOTS}</span>
-                  <span className="team-budget">{c.budget} cr.</span>
+                  {(!isAuctioneer || !hideDashboardCredits) && (
+                    <span className="team-budget">{c.budget} cr.</span>
+                  )}
                 </div>
                 <ul className="team-roster">
                   {buildRosterSlotList(c.players).map((slot, i) => (
                     slot.filled ? (
                       <li key={slot.player.id} className="roster-slot filled sm">
                         <span>{slot.player.name}</span>
-                        <span className="muted">{slot.player.role} · {slot.player.price}</span>
+                        <span className="muted">
+                          {slot.player.role}
+                          {(!isAuctioneer || !hideDashboardCredits) && ` · ${slot.player.price}`}
+                        </span>
                       </li>
                     ) : (
                       <li key={`empty-${i}`} className="roster-slot empty sm">—</li>
@@ -1904,8 +1981,9 @@ export function AuctionUI({
                                 type="button"
                                 className="btn-secondary btn-table-action"
                                 disabled={
-                                  isLive
-                                  || (phase === 'live' && currentPlayer && samePlayerId(currentPlayer.id, p.id))
+                                  phase === 'live'
+                                  && currentPlayer
+                                  && samePlayerId(currentPlayer.id, p.id)
                                 }
                                 onClick={() => {
                                   const ok = onStartSinglePlayer?.(p.id);

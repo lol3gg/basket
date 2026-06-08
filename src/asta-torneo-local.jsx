@@ -349,22 +349,30 @@ export function AstaTorneoLocal() {
       return false;
     }
     const snapshot = stateRef.current;
-    if (snapshot.isRunning) {
-      setActionError('Metti in pausa l\'asta prima di selezionare un altro giocatore.');
-      return false;
-    }
     const player = findPlayerById(snapshot.players, playerId);
     if (!player || player.status !== 'available') {
       setActionError('Giocatore non disponibile per l\'asta.');
       return false;
     }
+    if (
+      snapshot.currentPlayer
+      && samePlayerId(snapshot.currentPlayer.id, player.id)
+      && snapshot.phase === 'live'
+    ) {
+      return true;
+    }
+    const replacing = snapshot.currentPlayer && !samePlayerId(snapshot.currentPlayer.id, player.id);
     setCurrentPlayer(player);
     setCurrentBid(0);
     setCurrentBidder(null);
     setPhase('live');
     setIsRunning(false);
     setTimer(AUCTION_SECONDS);
-    pushLog(`${player.name} in palco — pronto per l'asta`);
+    pushLog(
+      replacing
+        ? `${player.name} in palco (sostituisce ${snapshot.currentPlayer.name}) — pronto per l'asta`
+        : `${player.name} in palco — pronto per l'asta`,
+    );
     setActionError('');
     return true;
   };

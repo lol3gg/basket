@@ -714,6 +714,34 @@ body::after {
   letter-spacing: 0.06em;
 }
 
+.panel-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.budget-visibility-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 4px;
+  background: rgba(212, 175, 55, 0.1);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.budget-visibility-toggle:hover,
+.budget-visibility-toggle.is-hidden {
+  background: rgba(212, 175, 55, 0.2);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .sub-title {
   margin: 0 0 0.65rem;
   font-family: 'Barlow Condensed', sans-serif;
@@ -2360,6 +2388,10 @@ body::after {
 .admin-coach-remove:hover {
   background: rgba(212, 175, 55, 0.22);
   border-color: var(--accent);
+}
+
+.admin-coach-list.credits-hidden li {
+  grid-template-columns: auto 1fr auto;
 }
 
 .admin-coach-list li.offline {

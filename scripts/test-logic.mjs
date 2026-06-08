@@ -87,9 +87,15 @@ function makeState(overrides = {}) {
 
 /** Simula handleStartSinglePlayer (banditore) */
 function simulateStartSinglePlayer(state, playerId) {
-  if (state.isRunning) return { ok: false, state, reason: 'running' };
   const player = findPlayerById(state.players, playerId);
   if (!player || player.status !== 'available') return { ok: false, state, reason: 'unavailable' };
+  if (
+    state.currentPlayer
+    && samePlayerId(state.currentPlayer.id, player.id)
+    && state.phase === 'live'
+  ) {
+    return { ok: true, state, reason: 'already-on-stage' };
+  }
   const next = {
     ...state,
     currentPlayer: player,
@@ -205,7 +211,11 @@ section('Metti in asta — scenari');
 
   s = makeState({ isRunning: true, phase: 'live', currentPlayer: makePlayer(1, 'Player A') });
   r = simulateStartSinglePlayer(s, 2);
-  assert(!r.ok && r.reason === 'running', 'bloccato se asta in corso');
+  assert(r.ok && r.state.currentPlayer?.id === 2, 'sostituisce giocatore anche con asta in corso');
+  assert(!r.state.isRunning, 'metti in asta ferma il timer del precedente');
+
+  r = simulateStartSinglePlayer(r.state, 2);
+  assert(r.ok && r.reason === 'already-on-stage', 'stesso giocatore già in palco: nessun cambio');
 
   s = makeState({
     players: [makePlayer(1, 'A', 'assigned', 2), makePlayer(2, 'B')],

@@ -200,17 +200,6 @@ function AstaTorneoAbly() {
     }
   }, [players, phase, isRunning]);
 
-  // Applica rosa ufficiale salvata (localStorage) allo stato live appena entra il banditore
-  useEffect(() => {
-    if (!isAuctioneer || showRoomEntry || !stanzaCode) {
-      rosterSyncedRef.current = false;
-      return;
-    }
-    if (rosterSyncedRef.current) return;
-    rosterSyncedRef.current = true;
-    publishState((state) => syncPlayersFromStorage(state));
-  }, [isAuctioneer, showRoomEntry, stanzaCode, publishState]);
-
   const applyState = useCallback((data) => {
     const sanitized = sanitizeGameState(data);
     if (!sanitized) return;
@@ -253,6 +242,17 @@ function AstaTorneoAbly() {
       console.error('publish state error:', err);
     });
   }, []);
+
+  // Applica rosa ufficiale salvata (localStorage) allo stato live appena entra il banditore
+  useEffect(() => {
+    if (!isAuctioneer || showRoomEntry || !stanzaCode) {
+      rosterSyncedRef.current = false;
+      return;
+    }
+    if (rosterSyncedRef.current) return;
+    rosterSyncedRef.current = true;
+    publishState((state) => syncPlayersFromStorage(state));
+  }, [isAuctioneer, showRoomEntry, stanzaCode, publishState]);
 
   // Connessione Ably + subscribe
   useEffect(() => {

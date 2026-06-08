@@ -16,10 +16,18 @@ if (-not $ablyKey) {
 Write-Host "Build locale..." -ForegroundColor Cyan
 npm run build
 
+$appUrl = "https://basket-three-kappa.vercel.app"
+
 Write-Host "Imposto VITE_ABLY_KEY su Vercel (production)..." -ForegroundColor Cyan
 $ablyKey | npx vercel env add VITE_ABLY_KEY production --force 2>$null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Variabile gia presente o aggiunta manualmente — continuo." -ForegroundColor Yellow
+}
+
+Write-Host "Imposto VITE_APP_URL su Vercel (production)..." -ForegroundColor Cyan
+$appUrl | npx vercel env add VITE_APP_URL production --force 2>$null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "VITE_APP_URL gia presente o aggiunta manualmente — continuo." -ForegroundColor Yellow
 }
 
 Write-Host "Deploy in produzione..." -ForegroundColor Cyan

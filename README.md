@@ -13,6 +13,7 @@ L'hosting è su **Vercel** (non GitHub Pages — il repo è solo il deposito del
 2. Framework: **Vite** (auto-rilevato)
 3. **Environment Variables** → aggiungi:
    - `VITE_ABLY_KEY` = la tua chiave Ably ([ably.com](https://ably.com) → API Keys)
+   - `VITE_APP_URL` = `https://basket-three-kappa.vercel.app` (link inviti WhatsApp)
 4. **Deploy**
 
 Ogni push su `main` ridistribuisce l'app in automatico.

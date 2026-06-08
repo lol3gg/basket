@@ -433,9 +433,23 @@ export function getSetupCoachName(setup, coachId) {
   return (coach?.name || '').trim() || null;
 }
 
+/** Deploy pubblico — usato per inviti WhatsApp quando il banditore è su localhost. */
+export const DEFAULT_PUBLIC_APP_URL = 'https://basket-three-kappa.vercel.app';
+
+function isLocalDevHost(hostname) {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+}
+
 export function getAppBaseUrl() {
-  if (typeof window === 'undefined') return '';
-  return `${window.location.origin}${window.location.pathname}`.replace(/\/$/, '') || window.location.origin;
+  const configured = (import.meta.env.VITE_APP_URL || '').trim().replace(/\/$/, '');
+  if (configured) return configured;
+
+  if (typeof window === 'undefined') return DEFAULT_PUBLIC_APP_URL;
+
+  const { origin, hostname, pathname } = window.location;
+  if (isLocalDevHost(hostname)) return DEFAULT_PUBLIC_APP_URL;
+
+  return `${origin}${pathname}`.replace(/\/$/, '') || origin;
 }
 
 export function buildShareInviteMessage(stanzaCode) {

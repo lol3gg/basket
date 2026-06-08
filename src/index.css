@@ -938,9 +938,9 @@ body::after {
 }
 
 .jersey-empty-ball {
-  color: rgba(212, 175, 55, 0.35);
-  margin-bottom: 0.35rem;
-  filter: drop-shadow(0 0 20px rgba(212, 175, 55, 0.15));
+  color: rgba(212, 175, 55, 0.42);
+  margin-bottom: 0.15rem;
+  filter: drop-shadow(0 0 28px rgba(212, 175, 55, 0.22));
 }
 
 .mobile-stage {
@@ -986,7 +986,7 @@ body::after {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   min-height: 0;
   perspective: var(--perspective);
   transform-style: preserve-3d;
@@ -1000,19 +1000,66 @@ body::after {
   gap: 0.5rem;
 }
 
-.leading-chip {
+.leading-coach-banner {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 1rem 1.35rem;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--coach-color, var(--gold));
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.32));
+  box-shadow: 0 0 36px color-mix(in srgb, var(--coach-color, var(--gold)) 38%, transparent);
+  text-align: center;
+  animation: float-subtle 3s ease-in-out infinite;
+}
+
+.leading-coach-label {
   font-family: 'Barlow Condensed', sans-serif;
   font-weight: 800;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.leading-coach-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.leading-coach-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 900;
+  font-size: clamp(1.45rem, 4vw, 1.9rem);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.05;
+  color: var(--text);
+}
+
+.leading-coach-bid {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  padding: 0.4rem 0.75rem;
-  border-radius: 999px;
-  border: 1px solid var(--coach-color, var(--gold));
-  color: var(--text);
-  background: rgba(0, 0, 0, 0.45);
-  box-shadow: 0 0 20px color-mix(in srgb, var(--coach-color, var(--gold)) 30%, transparent);
-  animation: float-subtle 3s ease-in-out infinite;
+  color: var(--coach-color, var(--gold));
+}
+
+.leading-coach-bid strong {
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.leading-coach-banner.mobile {
+  max-width: 100%;
+  margin-top: 0.15rem;
 }
 
 .stage-hint {
@@ -1040,8 +1087,15 @@ body::after {
 }
 
 .jersey-empty {
-  padding: 2.5rem 1.5rem;
+  max-width: 520px;
+  min-height: 300px;
+  padding: 3.5rem 2rem;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
 }
 
 .empty-icon {
@@ -1055,11 +1109,51 @@ body::after {
 }
 
 .empty-title {
-  margin: 0 0 0.25rem;
+  margin: 0;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 900;
+  font-size: clamp(1.65rem, 4.5vw, 2.35rem);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  line-height: 1.05;
+  color: var(--text);
+}
+
+.empty-subtitle {
+  margin: 0;
+  font-size: clamp(0.95rem, 2.5vw, 1.15rem);
+  color: var(--muted);
+  max-width: 22rem;
+  line-height: 1.35;
+}
+
+.jersey-leading-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  padding: 0.65rem 0.85rem;
+  background: color-mix(in srgb, var(--jersey-accent, var(--gold)) 22%, rgba(0, 0, 0, 0.55));
+  border-bottom: 1px solid color-mix(in srgb, var(--jersey-accent, var(--gold)) 45%, transparent);
+}
+
+.jersey-leading-tag {
   font-family: 'Barlow Condensed', sans-serif;
   font-weight: 800;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.jersey-leading-coach {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 900;
+  font-size: 1.15rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text);
 }
 
 .jersey-top {
@@ -3060,12 +3154,6 @@ html:-webkit-full-screen .app {
   color: var(--muted);
 }
 
-.mobile-leading {
-  margin: 0;
-  font-size: 0.88rem;
-  color: var(--coach-color, var(--text));
-}
-
 .mobile-timer {
   margin-top: 0.25rem;
 }
@@ -3087,19 +3175,28 @@ html:-webkit-full-screen .app {
 }
 
 .mobile-waiting {
-  padding: 1rem 0.5rem;
+  padding: 1.5rem 0.75rem;
 }
 
 .mobile-waiting-ball {
-  color: rgba(212, 175, 55, 0.3);
-  margin-bottom: 0.5rem;
+  color: rgba(212, 175, 55, 0.38);
+  margin-bottom: 0.65rem;
+  filter: drop-shadow(0 0 24px rgba(212, 175, 55, 0.18));
 }
 
 .mobile-waiting-title {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.4rem;
   font-family: 'Barlow Condensed', sans-serif;
-  font-weight: 800;
-  font-size: 1.25rem;
+  font-weight: 900;
+  font-size: 1.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mobile-waiting-subtitle {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--muted);
 }
 
 .mobile-bid-row {

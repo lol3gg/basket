@@ -218,13 +218,35 @@ function SetupPhotoButton({ player, onPhoto, onRemove }) {
   );
 }
 
+function LeadingCoachBanner({ coach, bid, className = '' }) {
+  if (!coach) return null;
+  const color = getCoachColor(coach.id);
+  const name = getCoachDisplayName(coach);
+
+  return (
+    <div
+      className={`leading-coach-banner${className ? ` ${className}` : ''}`}
+      style={{ '--coach-color': color }}
+    >
+      <span className="leading-coach-label">In testa all&apos;asta</span>
+      <div className="leading-coach-main">
+        <span className="coach-num" style={{ '--coach-color': color }}>{coach.id}</span>
+        <span className="leading-coach-name">{name}</span>
+      </div>
+      {bid > 0 && (
+        <span className="leading-coach-bid">Offerta attuale: <strong>{bid}</strong> cr.</span>
+      )}
+    </div>
+  );
+}
+
 export function JerseyCard({ player, currentBid, leadingCoachId, timer, phase, winnerName }) {
   if (!player) {
     return (
       <div className="jersey-card jersey-empty">
-        <BasketballIcon className="jersey-empty-ball" size={56} />
+        <BasketballIcon className="jersey-empty-ball" size={88} />
         <p className="empty-title">Nessuno in asta</p>
-        <p className="muted">Il banditore avvia la prossima chiamata</p>
+        <p className="empty-subtitle">Il banditore avvia la prossima chiamata</p>
       </div>
     );
   }
@@ -233,6 +255,7 @@ export function JerseyCard({ player, currentBid, leadingCoachId, timer, phase, w
   const { line1, line2 } = splitPlayerName(player.name);
   const accent = getCoachColor(leadingCoachId);
   const sold = isSettled && currentBid > 0 && leadingCoachId;
+  const showLeading = !isSettled && leadingCoachId && winnerName && currentBid > 0;
 
   return (
     <div
@@ -243,6 +266,13 @@ export function JerseyCard({ player, currentBid, leadingCoachId, timer, phase, w
       {isSettled && (
         <div className={`settled-banner ${sold ? 'sold' : 'unsold'}`}>
           {sold ? `Aggiudicato · ${winnerName}` : 'Non venduto'}
+        </div>
+      )}
+      {showLeading && (
+        <div className="jersey-leading-strip" style={{ '--jersey-accent': accent }}>
+          <span className="jersey-leading-tag">In testa</span>
+          <span className="coach-num sm" style={{ '--coach-color': accent }}>{leadingCoachId}</span>
+          <span className="jersey-leading-coach">{winnerName}</span>
         </div>
       )}
       <div className="jersey-top">
@@ -912,9 +942,7 @@ export function CoachMobileUI({
               <span className="mobile-bid-credits">crediti</span>
             </div>
             {leadingCoach && isLive && (
-              <p className="mobile-leading" style={{ '--coach-color': getCoachColor(leadingCoach.id) }}>
-                In testa: {getCoachDisplayName(leadingCoach)}
-              </p>
+              <LeadingCoachBanner coach={leadingCoach} bid={currentBid} className="mobile" />
             )}
             {isLive && (
               <div className="mobile-timer">
@@ -924,9 +952,9 @@ export function CoachMobileUI({
           </>
         ) : (
           <div className="mobile-waiting">
-            <BasketballIcon className="mobile-waiting-ball" size={52} />
+            <BasketballIcon className="mobile-waiting-ball" size={72} />
             <p className="mobile-waiting-title">Nessuno in asta</p>
-            <p className="muted">Attendi il prossimo giocatore</p>
+            <p className="mobile-waiting-subtitle">Attendi il prossimo giocatore</p>
           </div>
         )}
         <p className={`mobile-status ${isLive ? 'live' : ''} ${isSettled ? 'settled' : ''} ${isReady ? 'ready' : ''}`}>
@@ -1624,11 +1652,6 @@ export function AuctionUI({
           <div className="stage-inner">
             <div className="stage-head">
               <h2 className="panel-title">Palco asta</h2>
-              {leadingCoach && isLive && (
-                <span className="leading-chip" style={{ '--coach-color': getCoachColor(leadingCoach.id) }}>
-                  In testa: {getCoachDisplayName(leadingCoach)}
-                </span>
-              )}
             </div>
             <JerseyCard
               player={currentPlayer}
@@ -1638,6 +1661,9 @@ export function AuctionUI({
               phase={phase}
               winnerName={leadingCoach ? getCoachDisplayName(leadingCoach) : undefined}
             />
+            {leadingCoach && isLive && (
+              <LeadingCoachBanner coach={leadingCoach} bid={currentBid} />
+            )}
             {isReady && isAuctioneer && (
               <div className="ready-actions">
                 <p className="stage-hint ready-hint">Giocatore in palco — avvia il timer quando sei pronto</p>

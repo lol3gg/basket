@@ -152,6 +152,25 @@ body::after {
   padding-bottom: 0.75rem;
 }
 
+.dash-top-cluster {
+  width: 100%;
+  max-width: 1180px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.dash-top-cluster .dash-header,
+.dash-top-cluster .alert,
+.dash-top-cluster .coach-join-banner,
+.dash-top-cluster .stats-row,
+.dash-top-cluster .progress-block,
+.dash-top-cluster .force-assign-banner {
+  width: 100%;
+}
+
 .dash-auction-viewport .dash-header {
   margin-bottom: 0.35rem;
   flex-shrink: 0;
@@ -160,6 +179,36 @@ body::after {
 .dash-auction-viewport .stats-row,
 .dash-auction-viewport .progress-block {
   flex-shrink: 0;
+}
+
+@media (min-width: 769px) {
+  .dash-top-cluster .dash-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .dash-top-cluster .dash-brand {
+    justify-content: center;
+  }
+
+  .dash-top-cluster .dash-toolbar {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+  }
+
+  .dash-top-cluster .dash-meta,
+  .dash-top-cluster .dash-actions {
+    justify-content: center;
+  }
+
+  .dash-top-cluster .stats-row {
+    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+    justify-content: center;
+  }
 }
 
 .dash-auction-viewport .dash-main {

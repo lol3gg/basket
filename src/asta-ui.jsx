@@ -1566,69 +1566,71 @@ export function AuctionUI({
     <div className="app dash">
       <AssignmentFlashOverlay flash={assignmentFlash} />
       <div className="dash-auction-viewport">
-      <ArenaHeader
-        meta={(
-          <>
-            <span className={`pill ${connected ? 'ok' : 'err'}`}>
-              {connectedLabel ?? (connected ? 'Live' : 'Offline')}
-            </span>
-            <span className={`pill ${isLive ? 'live' : ''} ${isSettled ? 'settled' : ''} ${isPaused ? 'paused' : ''}`}>
-              {statusLabel}
-            </span>
-            <span className="pill user-pill" style={{ '--coach-color': myColor }}>
-              {isAuctioneer ? 'Banditore · Console' : getCoachDisplayName(myCoach)}
-            </span>
-          </>
+      <div className="dash-top-cluster">
+        <ArenaHeader
+          meta={(
+            <>
+              <span className={`pill ${connected ? 'ok' : 'err'}`}>
+                {connectedLabel ?? (connected ? 'Live' : 'Offline')}
+              </span>
+              <span className={`pill ${isLive ? 'live' : ''} ${isSettled ? 'settled' : ''} ${isPaused ? 'paused' : ''}`}>
+                {statusLabel}
+              </span>
+              <span className="pill user-pill" style={{ '--coach-color': myColor }}>
+                {isAuctioneer ? 'Banditore · Console' : getCoachDisplayName(myCoach)}
+              </span>
+            </>
+          )}
+          onChangeCoach={onChangeCoach}
+          actions={auctioneerActions}
+        />
+
+        {(actionError || bidError) && <div className="alert">{actionError || bidError}</div>}
+
+        {joinBanner && (
+          <div className="coach-join-banner" role="status">
+            {joinBanner} si è unito all&apos;asta
+          </div>
         )}
-        onChangeCoach={onChangeCoach}
-        actions={auctioneerActions}
-      />
 
-      {(actionError || bidError) && <div className="alert">{actionError || bidError}</div>}
+        <section className="stats-row">
+          <StatCard label="Disponibili" value={availablePlayers.length} sub={`su ${players.length} · ${ROSTER_SLOTS}/allenatore`} />
+          <StatCard label="Assegnati" value={assignedPlayers.length} accent />
+          <StatCard label="Offerta attuale" value={currentBid} sub="crediti" accent />
+          <StatCard label="Timer" value={isSettled ? '—' : isReady ? '—' : `${timer}s`} sub={isSettled ? 'conferma' : isReady ? 'pronto' : isPaused ? 'in pausa' : isLive ? 'asta' : 'fermo'} />
+          {(!isAuctioneer || !hideDashboardCredits) && (
+            <StatCard label="Spesi totali" value={totalSpent} sub="crediti lega" />
+          )}
+        </section>
 
-      {joinBanner && (
-        <div className="coach-join-banner" role="status">
-          {joinBanner} si è unito all&apos;asta
+        <div className="progress-block">
+          <div className="progress-head">
+            <span>Avanzamento asta</span>
+            <span>{progress}%</span>
+          </div>
+          <div className="progress-track">
+            <div className="progress-fill" style={{ width: `${progress}%` }} />
+          </div>
         </div>
-      )}
 
-      <section className="stats-row">
-        <StatCard label="Disponibili" value={availablePlayers.length} sub={`su ${players.length} · ${ROSTER_SLOTS}/allenatore`} />
-        <StatCard label="Assegnati" value={assignedPlayers.length} accent />
-        <StatCard label="Offerta attuale" value={currentBid} sub="crediti" accent />
-        <StatCard label="Timer" value={isSettled ? '—' : isReady ? '—' : `${timer}s`} sub={isSettled ? 'conferma' : isReady ? 'pronto' : isPaused ? 'in pausa' : isLive ? 'asta' : 'fermo'} />
-        {(!isAuctioneer || !hideDashboardCredits) && (
-          <StatCard label="Spesi totali" value={totalSpent} sub="crediti lega" />
+        {isAuctioneer && unbuyableCount > 0 && (
+          <div className="force-assign-banner" role="alert">
+            <p className="force-assign-banner-text">
+              Attenzione: <strong>{unbuyableCount}</strong> giocatori non possono essere acquistati
+              da nessun allenatore. Il banditore può assegnarli manualmente a 1 credito con il
+              pulsante <strong>FORZA ASSEGNAZIONE</strong>.
+            </p>
+            <button
+              type="button"
+              className="btn-cta btn-force-assign"
+              onClick={onForceAssignAll}
+              disabled={!canForceAssign}
+            >
+              FORZA ASSEGNAZIONE
+            </button>
+          </div>
         )}
-      </section>
-
-      <div className="progress-block">
-        <div className="progress-head">
-          <span>Avanzamento asta</span>
-          <span>{progress}%</span>
-        </div>
-        <div className="progress-track">
-          <div className="progress-fill" style={{ width: `${progress}%` }} />
-        </div>
       </div>
-
-      {isAuctioneer && unbuyableCount > 0 && (
-        <div className="force-assign-banner" role="alert">
-          <p className="force-assign-banner-text">
-            Attenzione: <strong>{unbuyableCount}</strong> giocatori non possono essere acquistati
-            da nessun allenatore. Il banditore può assegnarli manualmente a 1 credito con il
-            pulsante <strong>FORZA ASSEGNAZIONE</strong>.
-          </p>
-          <button
-            type="button"
-            className="btn-cta btn-force-assign"
-            onClick={onForceAssignAll}
-            disabled={!canForceAssign}
-          >
-            FORZA ASSEGNAZIONE
-          </button>
-        </div>
-      )}
 
       <div className="dash-main">
         <aside className="dash-panel coaches-sidebar">
